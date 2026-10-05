@@ -1,892 +1,381 @@
 <!DOCTYPE html>
-
 <html lang="th">
-
 <head>
-
   <meta charset="UTF-8" />
-
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>AR Cute Panda - Hiro Marker</title>
 
-  <meta name="theme-color" content="#17251b" />
-
-  <title>Panda Hiro AR</title>
-
-
-
+  <!-- A-Frame + AR.js -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-
-  <script src="https://raw\.githack.com/AR-js-org/AR.js/3.4.7/aframe/build/aframe-ar.js"></script>
-
-
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
 
   <style>
-
-    * { box-sizing: border-box; }
-
     html, body {
-
       margin: 0;
-
-      width: 100%;
-
-      height: 100%;
-
+      padding: 0;
       overflow: hidden;
-
+      width: 100%;
+      height: 100%;
       font-family: Arial, "Noto Sans Thai", sans-serif;
-
       background: #000;
-
     }
 
-    .hud {
-
+    .ui {
       position: fixed;
-
-      inset: 0;
-
-      z-index: 10;
-
-      pointer-events: none;
-
-    }
-
-    .title {
-
-      position: absolute;
-
-      top: 14px;
-
-      left: 50%;
-
-      transform: translateX(-50%);
-
-      width: min(92vw, 520px);
-
-      padding: 10px 14px;
-
-      border-radius: 16px;
-
-      background: rgba(17, 28, 20, .78);
-
-      color: #fff;
-
-      text-align: center;
-
-      font-size: 14px;
-
-      backdrop-filter: blur(8px);
-
-      box-shadow: 0 6px 22px rgba(0,0,0,.25);
-
-    }
-
-    .title strong {
-
-      display: block;
-
-      font-size: 18px;
-
-      margin-bottom: 2px;
-
-    }
-
-    .status {
-
-      position: absolute;
-
-      top: 82px;
-
-      left: 50%;
-
-      transform: translateX(-50%);
-
-      background: rgba(255,255,255,.9);
-
-      color: #1d3322;
-
-      border-radius: 999px;
-
-      padding: 7px 12px;
-
-      font-size: 12px;
-
-      font-weight: 700;
-
-    }
-
-    .controls {
-
-      position: absolute;
-
-      bottom: 24px;
-
-      left: 50%;
-
-      transform: translateX(-50%);
-
+      left: 0;
+      right: 0;
+      bottom: 22px;
+      z-index: 9999;
       display: flex;
-
-      gap: 12px;
-
-      pointer-events: auto;
-
+      justify-content: center;
+      gap: 14px;
+      pointer-events: none;
     }
 
-    button {
-
-      border: 0;
-
+    .ui button {
+      pointer-events: auto;
+      border: none;
       border-radius: 999px;
-
-      padding: 13px 20px;
-
-      min-width: 132px;
-
-      font-size: 16px;
-
-      font-weight: 800;
-
+      padding: 14px 22px;
+      font-size: 17px;
+      font-weight: 700;
       cursor: pointer;
-
-      color: white;
-
       box-shadow: 0 8px 22px rgba(0,0,0,.28);
-
-      touch-action: manipulation;
-
-    }
-
-    #feedBtn { background: #268a48; }
-
-    #playBtn { background: #e17d24; }
-
-    button:active { transform: scale(.97); }
-
-    button:disabled { opacity: .5; cursor: not-allowed; }
-
-    .note {
-
-      position: absolute;
-
-      bottom: 86px;
-
-      left: 50%;
-
-      transform: translateX(-50%);
-
-      color: white;
-
-      background: rgba(0,0,0,.55);
-
-      padding: 7px 12px;
-
-      border-radius: 12px;
-
-      font-size: 11px;
-
-      white-space: nowrap;
-
-    }
-
-
-    /* Mobile AR camera layering fix */
-    video,
-    #arjs-video {
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
-      object-fit: cover !important;
-      z-index: -2 !important;
-      background: transparent !important;
-    }
-
-    .a-canvas,
-    canvas.a-canvas {
-      position: fixed !important;
-      inset: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
-      z-index: -1 !important;
-      background: transparent !important;
-    }
-
-    a-scene {
-      background: transparent !important;
-    }
-
-    #cameraHelp {
-      display: none;
-      position: absolute;
-      left: 50%;
-      bottom: 145px;
-      transform: translateX(-50%);
-      width: min(92vw, 520px);
-      padding: 10px 14px;
-      border-radius: 14px;
-      background: rgba(128, 23, 23, .90);
+      transition: transform .15s ease, opacity .15s ease;
       color: #fff;
-      text-align: center;
-      font-size: 12px;
-      pointer-events: auto;
     }
 
-    #retryBtn {
-      margin-top: 8px;
-      min-width: 0;
+    .ui button:active {
+      transform: scale(.94);
+    }
+
+    #feedBtn {
+      background: linear-gradient(135deg, #33a852, #1d7f3b);
+    }
+
+    #playBtn {
+      background: linear-gradient(135deg, #ff8a00, #ff5f00);
+    }
+
+    .hint {
+      position: fixed;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      background: rgba(0,0,0,.58);
+      color: #fff;
       padding: 9px 14px;
+      border-radius: 14px;
+      font-size: 14px;
+      text-align: center;
+      max-width: calc(100vw - 30px);
+      pointer-events: none;
+      backdrop-filter: blur(4px);
+    }
+
+    #status {
+      position: fixed;
+      top: 62px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 9999;
+      background: rgba(255,255,255,.9);
+      color: #222;
+      padding: 7px 12px;
+      border-radius: 12px;
       font-size: 13px;
-      background: #ffffff;
-      color: #7a1515;
-      box-shadow: none;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity .25s ease;
     }
 
-    @media (max-width: 420px) {
-
-      .controls { gap: 8px; width: 94%; }
-
-      button { flex: 1; min-width: 0; padding: 12px 10px; }
-
+    #status.show {
+      opacity: 1;
     }
-
   </style>
 
-
-
   <script>
+    AFRAME.registerComponent('look-at-camera-y', {
+      tick: function () {
+        const cam = document.querySelector('[camera]');
+        if (!cam) return;
+        const camPos = new THREE.Vector3();
+        cam.object3D.getWorldPosition(camPos);
 
-    AFRAME.registerComponent('panda-idle', {
+        const objPos = new THREE.Vector3();
+        this.el.object3D.getWorldPosition(objPos);
 
-      init: function () {
-
-        this.t = 0;
-
-        this.baseY = this.el.object3D.position.y;
-
-      },
-
-      tick: function (time, delta) {
-
-        this.t += delta / 1000;
-
-        if (this.el.getAttribute('data-busy') === 'true') return;
-
-        this.el.object3D.position.y = this.baseY + Math.sin(this.t * 2.2) * 0.015;
-
-        this.el.object3D.rotation.z = Math.sin(this.t * 1.5) * 0.025;
-
+        const dx = camPos.x - objPos.x;
+        const dz = camPos.z - objPos.z;
+        this.el.object3D.rotation.y = Math.atan2(dx, dz);
       }
-
     });
 
-  </script>
+    AFRAME.registerComponent('panda-breathe', {
+      init: function () {
+        this.baseY = this.el.object3D.position.y;
+        this.t = 0;
+      },
+      tick: function (time, delta) {
+        this.t += delta / 1000;
+        this.el.object3D.position.y = this.baseY + Math.sin(this.t * 2.1) * 0.012;
+      }
+    });
 
+    AFRAME.registerComponent('ball-bounce', {
+      schema: { active: { default: false } },
+      init: function () {
+        this.t = 0;
+        this.start = this.el.object3D.position.clone();
+      },
+      tick: function (time, delta) {
+        if (!this.data.active) return;
+        this.t += delta / 1000;
+        const t = this.t;
+        this.el.object3D.position.x = this.start.x + Math.sin(t * 2.6) * 0.55;
+        this.el.object3D.position.z = this.start.z + Math.cos(t * 1.7) * 0.20;
+        this.el.object3D.position.y = this.start.y + Math.abs(Math.sin(t * 4.2)) * 0.34;
+        this.el.object3D.rotation.x += 0.06;
+        this.el.object3D.rotation.z += 0.08;
+      }
+    });
+  </script>
 </head>
 
-
-
 <body>
+  <div class="hint">ส่องกล้องไปที่ Hiro Marker เพื่อเรียกแพนด้า 🐼</div>
+  <div id="status"></div>
 
-  <div class="hud">
-
-    <div class="title">
-
-      <strong>🐼 Panda AR Garden</strong>
-
-      หันกล้องไปที่ Hiro Marker แล้วทักทายแพนด้าน้อย
-
-    </div>
-
-    <div class="status" id="status">กำลังรอ Hiro Marker…</div>
-
-    <div class="note">กล้องต้องได้รับอนุญาต และควรเปิดผ่าน HTTPS หรือ localhost</div>
-
-    <div id="cameraHelp">
-      ไม่พบภาพจากกล้อง หากเพิ่งสลับแอป/แท็บ หรือกล้องถูกหยุด ให้กดเปิดกล้องใหม่
-      <br />
-      <button id="retryBtn" type="button">📷 เปิดกล้องใหม่</button>
-    </div>
-    <div class="controls">
-
-      <button id="feedBtn" disabled>🎋 ให้อาหาร</button>
-
-      <button id="playBtn" disabled>⚽ เล่นกับแพนด้า</button>
-
-    </div>
-
+  <div class="ui">
+    <button id="feedBtn">🎋 ให้อาหาร</button>
+    <button id="playBtn">⚽ เล่น</button>
   </div>
 
-
-
   <a-scene
-
     embedded
-
     vr-mode-ui="enabled: false"
-
-    renderer="antialias: true; alpha: true; colorManagement: true; precision: mediump;"
-
-    arjs="sourceType: webcam; facingMode: environment; debugUIEnabled: false; detectionMode: mono; patternRatio: 0.75; sourceWidth: 1280; sourceHeight: 720; displayWidth: 1280; displayHeight: 720;"
-
+    renderer="antialias: true; alpha: true; colorManagement: true;"
+    arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
   >
-
-    <a-assets></a-assets>
-
-
-
-    <a-marker preset="hiro" id="hiroMarker" emitevents="true">
-
-      <!-- Scene is rotated so the panda's face is aimed toward the camera side of the marker. -->
-
-      <a-entity id="world" rotation="0 0 0">
-
-
-
-        <!-- Grass base -->
-
-        <a-cylinder
-
-          position="0 0.025 0"
-
-          radius="0.82"
-
-          height="0.05"
-
-          color="#68a94d"
-
-          roughness="1"
-
-        ></a-cylinder>
-
-        <a-cylinder
-
-          position="0 0.055 0"
-
-          radius="0.72"
-
-          height="0.025"
-
-          color="#86c85e"
-
-          roughness="1"
-
-        ></a-cylinder>
-
-
-
-        <!-- Small grass tufts -->
-
-        <a-entity position="-0.55 0.12 -0.18" rotation="0 0 -8">
-
-          <a-cone radius-bottom="0.025" radius-top="0" height="0.18" color="#397b37"></a-cone>
-
-          <a-cone position="0.05 0 0.02" rotation="0 0 18" radius-bottom="0.022" radius-top="0" height="0.16" color="#4d9145"></a-cone>
-
-        </a-entity>
-
-        <a-entity position="0.55 0.12 0.12" rotation="0 0 8">
-
-          <a-cone radius-bottom="0.025" radius-top="0" height="0.18" color="#397b37"></a-cone>
-
-          <a-cone position="-0.05 0 0.02" rotation="0 0 -18" radius-bottom="0.022" radius-top="0" height="0.16" color="#4d9145"></a-cone>
-
-        </a-entity>
-
-
-
-        <!-- PANDA: low/crawling pose; face toward +Z -->
-
-        <a-entity id="panda" panda-idle position="0 0.20 0.02" data-busy="false">
-
-
-
-          <!-- Body -->
-
-          <a-sphere position="0 0.15 -0.14" scale="0.38 0.25 0.48" color="#f4f2e9" roughness="0.85"></a-sphere>
-
-          <a-sphere position="0 0.17 -0.02" scale="0.31 0.24 0.31" color="#f8f6ef" roughness="0.85"></a-sphere>
-
-
-
-          <!-- Head -->
-
-          <a-sphere position="0 0.37 0.22" scale="0.29 0.28 0.27" color="#faf8f1" roughness="0.8"></a-sphere>
-
-
-
-          <!-- Ears -->
-
-          <a-sphere position="-0.205 0.555 0.205" scale="0.095 0.10 0.065" color="#151515"></a-sphere>
-
-          <a-sphere position="0.205 0.555 0.205" scale="0.095 0.10 0.065" color="#151515"></a-sphere>
-
-
-
-          <!-- Eye patches -->
-
-          <a-sphere position="-0.105 0.405 0.438" rotation="-8 0 -18" scale="0.083 0.105 0.035" color="#171717"></a-sphere>
-
-          <a-sphere position="0.105 0.405 0.438" rotation="-8 0 18" scale="0.083 0.105 0.035" color="#171717"></a-sphere>
-
-
-
-          <!-- Eyes -->
-
-          <a-sphere position="-0.09 0.418 0.469" scale="0.027 0.035 0.018" color="#ffffff"></a-sphere>
-
-          <a-sphere position="0.09 0.418 0.469" scale="0.027 0.035 0.018" color="#ffffff"></a-sphere>
-
-          <a-sphere position="-0.084 0.414 0.484" scale="0.013 0.017 0.012" color="#242424"></a-sphere>
-
-          <a-sphere position="0.084 0.414 0.484" scale="0.013 0.017 0.012" color="#242424"></a-sphere>
-
-
-
-          <!-- Muzzle / nose / smile -->
-
-          <a-sphere position="0 0.335 0.475" scale="0.11 0.07 0.045" color="#fffdf7"></a-sphere>
-
-          <a-sphere position="0 0.36 0.515" scale="0.042 0.028 0.022" color="#121212"></a-sphere>
-
-          <a-torus position="0 0.31 0.507" rotation="90 0 0" radius="0.045" radius-tubular="0.008"
-
-                   arc="180" color="#2a1b1b"></a-torus>
-
-
-
-          <!-- Cheeks -->
-
-          <a-sphere position="-0.155 0.325 0.463" scale="0.038 0.022 0.014" color="#f0a6a6"></a-sphere>
-
-          <a-sphere position="0.155 0.325 0.463" scale="0.038 0.022 0.014" color="#f0a6a6"></a-sphere>
-
-
-
-          <!-- Crawling legs -->
-
-          <a-capsule position="-0.25 0.08 0.16" rotation="88 0 22" radius="0.07" height="0.20" color="#171717"></a-capsule>
-
-          <a-capsule position="0.25 0.08 0.16" rotation="88 0 -22" radius="0.07" height="0.20" color="#171717"></a-capsule>
-
-          <a-capsule position="-0.25 0.07 -0.28" rotation="88 0 -18" radius="0.075" height="0.21" color="#171717"></a-capsule>
-
-          <a-capsule position="0.25 0.07 -0.28" rotation="88 0 18" radius="0.075" height="0.21" color="#171717"></a-capsule>
-
-
-
-          <!-- tiny tail -->
-
-          <a-sphere position="0 0.20 -0.55" scale="0.08 0.07 0.07" color="#171717"></a-sphere>
-
-        </a-entity>
-
-
-
-        <!-- Bamboo, hidden until feeding -->
-
-        <a-entity id="bamboo" visible="false" position="0.55 0.18 0.48" rotation="0 0 70">
-
-          <a-cylinder radius="0.025" height="0.46" color="#4e9c46"></a-cylinder>
-
-          <a-torus position="0 0.10 0" rotation="90 0 0" radius="0.027" radius-tubular="0.006" color="#2f7636"></a-torus>
-
-          <a-torus position="0 -0.10 0" rotation="90 0 0" radius="0.027" radius-tubular="0.006" color="#2f7636"></a-torus>
-
-          <a-sphere position="0.06 0.12 0" scale="0.08 0.025 0.04" color="#66b75a"></a-sphere>
-
-          <a-sphere position="-0.06 -0.05 0" scale="0.08 0.025 0.04" color="#66b75a"></a-sphere>
-
-        </a-entity>
-
-
-
-        <!-- Ball, hidden until playing -->
-
-        <a-entity id="ball" visible="false" position="-0.55 0.16 0.38">
-
-          <a-sphere radius="0.13" color="#ef8b32" roughness="0.6"></a-sphere>
-
-          <a-torus rotation="90 0 0" radius="0.095" radius-tubular="0.012" color="#fff4cf"></a-torus>
-
-          <a-torus rotation="0 90 0" radius="0.095" radius-tubular="0.012" color="#fff4cf"></a-torus>
-
-        </a-entity>
-
-
-
+    <a-assets>
+      <a-mixin id="whiteMat" material="color:#fffaf6; roughness:0.9;"></a-mixin>
+      <a-mixin id="blackMat" material="color:#121212; roughness:0.8;"></a-mixin>
+      <a-mixin id="pinkMat" material="color:#f6a7b8; roughness:0.7;"></a-mixin>
+      <a-mixin id="greenMat" material="color:#58b957; roughness:0.85;"></a-mixin>
+    </a-assets>
+
+    <a-marker preset="hiro" id="hiroMarker">
+
+      <!-- ฐานสนามหญ้า -->
+      <a-cylinder
+        position="0 0 0"
+        radius="1.15"
+        height="0.035"
+        color="#7fcf65"
+        material="roughness:1;">
+      </a-cylinder>
+
+      <!-- ดอกไม้ตกแต่ง -->
+      <a-entity position="-0.78 0.06 -0.48">
+        <a-cylinder radius="0.018" height="0.18" color="#4f9f4b"></a-cylinder>
+        <a-sphere position="0 0.12 0" radius="0.05" color="#ffd84c"></a-sphere>
+        <a-sphere position="0.045 0.12 0" radius="0.035" color="#ff8db6"></a-sphere>
+        <a-sphere position="-0.045 0.12 0" radius="0.035" color="#ff8db6"></a-sphere>
       </a-entity>
 
+      <a-entity position="0.82 0.06 -0.36" scale="0.9 0.9 0.9">
+        <a-cylinder radius="0.018" height="0.18" color="#4f9f4b"></a-cylinder>
+        <a-sphere position="0 0.12 0" radius="0.05" color="#ffd84c"></a-sphere>
+        <a-sphere position="0.045 0.12 0" radius="0.035" color="#a78bfa"></a-sphere>
+        <a-sphere position="-0.045 0.12 0" radius="0.035" color="#a78bfa"></a-sphere>
+      </a-entity>
+
+      <!-- PANDA -->
+      <a-entity id="panda" position="0 0.12 0" panda-breathe look-at-camera-y>
+
+        <!-- ลำตัว -->
+        <a-sphere
+          position="0 0.44 0"
+          scale="0.42 0.50 0.35"
+          mixin="whiteMat">
+        </a-sphere>
+
+        <!-- ท้อง -->
+        <a-sphere
+          position="0 0.42 0.29"
+          scale="0.28 0.34 0.08"
+          color="#fffefb">
+        </a-sphere>
+
+        <!-- ขาหลัง -->
+        <a-sphere position="-0.24 0.20 0.06" scale="0.20 0.16 0.18" mixin="blackMat"></a-sphere>
+        <a-sphere position="0.24 0.20 0.06" scale="0.20 0.16 0.18" mixin="blackMat"></a-sphere>
+
+        <!-- เท้า -->
+        <a-sphere position="-0.27 0.15 0.25" scale="0.15 0.10 0.19" mixin="blackMat"></a-sphere>
+        <a-sphere position="0.27 0.15 0.25" scale="0.15 0.10 0.19" mixin="blackMat"></a-sphere>
+
+        <!-- แขน -->
+        <a-sphere position="-0.34 0.47 0.12" scale="0.13 0.30 0.13" rotation="0 0 -24" mixin="blackMat"></a-sphere>
+        <a-sphere position="0.34 0.47 0.12" scale="0.13 0.30 0.13" rotation="0 0 24" mixin="blackMat"></a-sphere>
+
+        <!-- หัว -->
+        <a-sphere
+          position="0 0.89 0.03"
+          scale="0.46 0.43 0.40"
+          mixin="whiteMat">
+        </a-sphere>
+
+        <!-- หู -->
+        <a-sphere position="-0.31 1.18 0.01" radius="0.17" mixin="blackMat"></a-sphere>
+        <a-sphere position="0.31 1.18 0.01" radius="0.17" mixin="blackMat"></a-sphere>
+
+        <!-- แผ่นตาดำ -->
+        <a-sphere position="-0.19 0.96 0.35" scale="0.16 0.20 0.06" rotation="0 0 -18" mixin="blackMat"></a-sphere>
+        <a-sphere position="0.19 0.96 0.35" scale="0.16 0.20 0.06" rotation="0 0 18" mixin="blackMat"></a-sphere>
+
+        <!-- ตา -->
+        <a-sphere position="-0.17 0.98 0.405" radius="0.052" color="#ffffff"></a-sphere>
+        <a-sphere position="0.17 0.98 0.405" radius="0.052" color="#ffffff"></a-sphere>
+        <a-sphere position="-0.17 0.985 0.448" radius="0.026" color="#111111"></a-sphere>
+        <a-sphere position="0.17 0.985 0.448" radius="0.026" color="#111111"></a-sphere>
+        <a-sphere position="-0.158 1.005 0.47" radius="0.010" color="#ffffff"></a-sphere>
+        <a-sphere position="0.182 1.005 0.47" radius="0.010" color="#ffffff"></a-sphere>
+
+        <!-- แก้ม -->
+        <a-sphere position="-0.29 0.84 0.36" scale="0.09 0.05 0.025" mixin="pinkMat"></a-sphere>
+        <a-sphere position="0.29 0.84 0.36" scale="0.09 0.05 0.025" mixin="pinkMat"></a-sphere>
+
+        <!-- จมูก -->
+        <a-sphere position="0 0.84 0.42" scale="0.07 0.045 0.035" color="#151515"></a-sphere>
+
+        <!-- ปาก -->
+        <a-torus
+          position="0 0.76 0.425"
+          radius="0.075"
+          radius-tubular="0.012"
+          arc="180"
+          rotation="0 0 180"
+          color="#202020">
+        </a-torus>
+
+        <!-- ไม้ไผ่สำหรับ animation -->
+        <a-entity id="bamboo" visible="false" position="0.88 0.47 0.38" rotation="0 0 78">
+          <a-cylinder radius="0.045" height="0.62" color="#58b957"></a-cylinder>
+          <a-torus position="0 0.15 0" radius="0.047" radius-tubular="0.012" rotation="90 0 0" color="#3f9445"></a-torus>
+          <a-torus position="0 -0.12 0" radius="0.047" radius-tubular="0.012" rotation="90 0 0" color="#3f9445"></a-torus>
+          <a-sphere position="0.12 0.08 0" scale="0.16 0.04 0.08" color="#72cf6b" rotation="0 0 35"></a-sphere>
+          <a-sphere position="-0.12 -0.04 0" scale="0.16 0.04 0.08" color="#72cf6b" rotation="0 0 -35"></a-sphere>
+        </a-entity>
+
+        <!-- ลูกบอล -->
+        <a-sphere
+          id="ball"
+          visible="false"
+          position="0.72 0.18 0.35"
+          radius="0.15"
+          color="#ff5f5f"
+          ball-bounce="active:false">
+          <a-ring radius-inner="0.10" radius-outer="0.13" color="#ffd23f" rotation="90 0 0"></a-ring>
+        </a-sphere>
+
+      </a-entity>
     </a-marker>
 
-
-
     <a-entity camera></a-entity>
-
   </a-scene>
 
-
-
   <script>
-
-    const marker = document.querySelector('#hiroMarker');
-
-    const panda = document.querySelector('#panda');
-
-    const bamboo = document.querySelector('#bamboo');
-
-    const ball = document.querySelector('#ball');
-
-    const feedBtn = document.querySelector('#feedBtn');
-
-    const playBtn = document.querySelector('#playBtn');
-
-    const status = document.querySelector('#status');
-
-
+    const feedBtn = document.getElementById('feedBtn');
+    const playBtn = document.getElementById('playBtn');
+    const bamboo = document.getElementById('bamboo');
+    const ball = document.getElementById('ball');
+    const panda = document.getElementById('panda');
+    const marker = document.getElementById('hiroMarker');
+    const status = document.getElementById('status');
 
     let markerVisible = false;
+    let feedTimer = null;
+    let playTimer = null;
 
-    let busy = false;
-
-
+    function showStatus(text) {
+      status.textContent = text;
+      status.classList.add('show');
+      clearTimeout(showStatus.timer);
+      showStatus.timer = setTimeout(() => status.classList.remove('show'), 1800);
+    }
 
     marker.addEventListener('markerFound', () => {
-
       markerVisible = true;
-
-      feedBtn.disabled = false;
-
-      playBtn.disabled = false;
-
-      status.textContent = 'พบ Hiro Marker แล้ว 🐼';
-
+      showStatus('พบ Hiro Marker แล้ว 🐼');
     });
-
-
 
     marker.addEventListener('markerLost', () => {
-
       markerVisible = false;
-
-      feedBtn.disabled = true;
-
-      playBtn.disabled = true;
-
-      status.textContent = 'กำลังรอ Hiro Marker…';
-
     });
-
-
-
-    function setBusy(value) {
-
-      busy = value;
-
-      panda.setAttribute('data-busy', value ? 'true' : 'false');
-
-      feedBtn.disabled = value || !markerVisible;
-
-      playBtn.disabled = value || !markerVisible;
-
-    }
-
-
-
-    function clearAnimations(el) {
-
-      ['animation__a','animation__b','animation__c','animation__d','animation__e']
-
-        .forEach(a => el.removeAttribute(a));
-
-    }
-
-
 
     feedBtn.addEventListener('click', () => {
+      if (!markerVisible) {
+        showStatus('กรุณาส่องกล้องไปที่ Hiro Marker ก่อน');
+        return;
+      }
 
-      if (busy || !markerVisible) return;
-
-      setBusy(true);
-
-      status.textContent = 'แพนด้ากำลังกินไม้ไผ่ 🎋';
-
-
-
-      clearAnimations(bamboo);
-
-      clearAnimations(panda);
-
+      clearTimeout(feedTimer);
       bamboo.setAttribute('visible', true);
 
-      bamboo.setAttribute('position', '0.58 0.20 0.48');
+      bamboo.removeAttribute('animation__feed');
+      bamboo.setAttribute('position', '0.88 0.47 0.38');
 
-      bamboo.setAttribute('rotation', '0 0 70');
+      requestAnimationFrame(() => {
+        bamboo.setAttribute(
+          'animation__feed',
+          'property: position; from: 0.88 0.47 0.38; to: 0.16 0.72 0.43; dur: 850; easing: easeOutQuad'
+        );
+      });
 
+      panda.removeAttribute('animation__happy');
+      panda.setAttribute(
+        'animation__happy',
+        'property: rotation; from: 0 0 0; to: 0 0 5; dir: alternate; loop: 6; dur: 140; easing: easeInOutSine'
+      );
 
+      showStatus('อร่อยมาก! 🎋');
 
-      bamboo.setAttribute('animation__a',
-
-        'property: position; to: 0.15 0.35 0.46; dur: 900; easing: easeOutQuad');
-
-      bamboo.setAttribute('animation__b',
-
-        'property: rotation; to: 0 0 35; dur: 900; easing: easeOutQuad');
-
-
-
-      setTimeout(() => {
-
-        panda.setAttribute('animation__a',
-
-          'property: rotation; from: 0 0 -3; to: 0 0 3; dur: 250; dir: alternate; loop: 5; easing: easeInOutSine');
-
-        bamboo.setAttribute('animation__c',
-
-          'property: position; from: 0.15 0.35 0.46; to: 0.12 0.32 0.44; dur: 220; dir: alternate; loop: 6');
-
-      }, 950);
-
-
-
-      setTimeout(() => {
-
-        bamboo.setAttribute('animation__d',
-
-          'property: scale; from: 1 1 1; to: 0.15 0.15 0.15; dur: 800; easing: easeInQuad');
-
-      }, 2300);
-
-
-
-      setTimeout(() => {
-
+      feedTimer = setTimeout(() => {
         bamboo.setAttribute('visible', false);
-
-        bamboo.setAttribute('scale', '1 1 1');
-
-        clearAnimations(bamboo);
-
-        clearAnimations(panda);
-
+        bamboo.removeAttribute('animation__feed');
+        panda.removeAttribute('animation__happy');
         panda.setAttribute('rotation', '0 0 0');
-
-        status.textContent = markerVisible ? 'อร่อยมาก! 🐼💚' : 'กำลังรอ Hiro Marker…';
-
-        setBusy(false);
-
-      }, 3300);
-
+      }, 3600);
     });
-
-
 
     playBtn.addEventListener('click', () => {
+      if (!markerVisible) {
+        showStatus('กรุณาส่องกล้องไปที่ Hiro Marker ก่อน');
+        return;
+      }
 
-      if (busy || !markerVisible) return;
-
-      setBusy(true);
-
-      status.textContent = 'แพนด้ากำลังเล่นบอล ⚽';
-
-
-
-      clearAnimations(ball);
-
-      clearAnimations(panda);
-
+      clearTimeout(playTimer);
       ball.setAttribute('visible', true);
+      ball.setAttribute('ball-bounce', 'active:true');
 
-      ball.setAttribute('position', '-0.58 0.16 0.40');
-
-      ball.setAttribute('rotation', '0 0 0');
-
-
-
-      ball.setAttribute('animation__a',
-
-        'property: position; from: -0.58 0.16 0.40; to: 0.45 0.16 0.42; dur: 900; dir: alternate; loop: 3; easing: easeInOutQuad');
-
-      ball.setAttribute('animation__b',
-
-        'property: rotation; from: 0 0 0; to: 360 720 360; dur: 900; dir: alternate; loop: 3; easing: linear');
-
-
-
-      panda.setAttribute('animation__a',
-
-        'property: position; from: 0 0.20 0.02; to: 0.10 0.25 0.03; dur: 450; dir: alternate; loop: 6; easing: easeInOutSine');
-
-      panda.setAttribute('animation__b',
-
-        'property: rotation; from: 0 0 -5; to: 0 0 5; dur: 450; dir: alternate; loop: 6; easing: easeInOutSine');
-
-
-
-      setTimeout(() => {
-
-        ball.setAttribute('visible', false);
-
-        clearAnimations(ball);
-
-        clearAnimations(panda);
-
-        panda.setAttribute('position', '0 0.20 0.02');
-
-        panda.setAttribute('rotation', '0 0 0');
-
-        status.textContent = markerVisible ? 'เล่นสนุกจัง! 🐼⚽' : 'กำลังรอ Hiro Marker…';
-
-        setBusy(false);
-
-      }, 3100);
-
-    });
-
-    const cameraHelp = document.querySelector('#cameraHelp');
-    const retryBtn = document.querySelector('#retryBtn');
-
-    function forceTransparentRenderer() {
-      const scene = document.querySelector('a-scene');
-      if (!scene) return;
-
-      const apply = () => {
-        if (scene.renderer) {
-          scene.renderer.setClearColor(0x000000, 0);
-          scene.renderer.setClearAlpha(0);
-          if (scene.canvas) {
-            scene.canvas.style.background = 'transparent';
-          }
-        }
-      };
-
-      if (scene.hasLoaded) apply();
-      else scene.addEventListener('loaded', apply, { once: true });
-
-      scene.addEventListener('renderstart', apply);
-    }
-
-    function getCameraVideo() {
-      return document.querySelector('#arjs-video') || document.querySelector('video');
-    }
-
-    function cameraIsAlive() {
-      const video = getCameraVideo();
-      if (!video) return false;
-
-      const stream = video.srcObject;
-      const tracks = stream && stream.getVideoTracks ? stream.getVideoTracks() : [];
-      const liveTrack = tracks.find(t => t.readyState === 'live');
-
-      return Boolean(
-        liveTrack &&
-        video.readyState >= 2 &&
-        video.videoWidth > 0 &&
-        video.videoHeight > 0
+      panda.removeAttribute('animation__play');
+      panda.setAttribute(
+        'animation__play',
+        'property: rotation; from: 0 -8 0; to: 0 8 0; dir: alternate; loop: 12; dur: 180; easing: easeInOutSine'
       );
-    }
 
-    function refreshCameraStatus() {
-      const video = getCameraVideo();
+      showStatus('เล่นบอลกัน! ⚽');
 
-      if (video) {
-        video.setAttribute('playsinline', '');
-        video.setAttribute('webkit-playsinline', '');
-        video.muted = true;
-
-        if (video.paused) {
-          video.play().catch(() => {});
-        }
-      }
-
-      if (cameraIsAlive()) {
-        cameraHelp.style.display = 'none';
-        if (!markerVisible && !busy) {
-          status.textContent = 'กล้องพร้อมแล้ว • กำลังรอ Hiro Marker…';
-        }
-      } else {
-        cameraHelp.style.display = 'block';
-        if (!busy) {
-          status.textContent = 'ไม่พบภาพจากกล้อง';
-        }
-      }
-    }
-
-    function watchCameraTrack() {
-      const video = getCameraVideo();
-      if (!video || !video.srcObject) return;
-
-      const track = video.srcObject.getVideoTracks?.()[0];
-      if (!track || track.__pandaWatchAttached) return;
-
-      track.__pandaWatchAttached = true;
-
-      track.addEventListener('ended', () => {
-        cameraHelp.style.display = 'block';
-        status.textContent = 'กล้องถูกหยุด • กด "เปิดกล้องใหม่"';
-      });
-
-      track.addEventListener('mute', () => {
-        cameraHelp.style.display = 'block';
-        status.textContent = 'สัญญาณกล้องถูกพักชั่วคราว';
-      });
-
-      track.addEventListener('unmute', () => {
-        refreshCameraStatus();
-      });
-    }
-
-    function restartARCamera() {
-      status.textContent = 'กำลังเปิดกล้องใหม่…';
-
-      const currentVideo = getCameraVideo();
-      if (currentVideo && currentVideo.srcObject) {
-        currentVideo.srcObject.getTracks().forEach(track => track.stop());
-      }
-
-      // Let AR.js recreate its own webcam stream.
-      setTimeout(() => location.reload(), 150);
-    }
-
-    retryBtn.addEventListener('click', restartARCamera);
-
-    forceTransparentRenderer();
-
-    window.addEventListener('load', () => {
-      setTimeout(() => {
-        forceTransparentRenderer();
-        refreshCameraStatus();
-        watchCameraTrack();
-      }, 1800);
-
-      setTimeout(() => {
-        refreshCameraStatus();
-        watchCameraTrack();
-      }, 4500);
+      playTimer = setTimeout(() => {
+        ball.setAttribute('ball-bounce', 'active:false');
+        ball.setAttribute('visible', false);
+        ball.object3D.position.set(0.72, 0.18, 0.35);
+        panda.removeAttribute('animation__play');
+        panda.setAttribute('rotation', '0 0 0');
+      }, 6000);
     });
-
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) {
-        setTimeout(() => {
-          forceTransparentRenderer();
-          refreshCameraStatus();
-          watchCameraTrack();
-        }, 400);
-      }
-    });
-
-    window.addEventListener('pageshow', () => {
-      setTimeout(() => {
-        forceTransparentRenderer();
-        refreshCameraStatus();
-        watchCameraTrack();
-      }, 400);
-    });
-
-</script>
-
+  </script>
 </body>
-
 </html>
