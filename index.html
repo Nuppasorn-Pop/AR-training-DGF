@@ -1,377 +1,367 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="th">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>AR Rocket - Hiro Marker</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta name="theme-color" content="#1f5131" />
+  <title>AR Panda - Hiro Marker</title>
 
-  <!-- A-Frame -->
-  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
-
-  <!-- AR.js for A-Frame -->
-  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.7/aframe/build/aframe-ar.js"></script>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/aframe/build/aframe-ar.js"></script>
 
   <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
+    html, body {
       margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
       overflow: hidden;
-      font-family: Arial, Helvetica, sans-serif;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: #000;
     }
 
-    .ui {
+    #hud {
       position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 24px;
-      z-index: 9999;
-      display: flex;
-      justify-content: center;
-      gap: 12px;
+      inset: 0;
+      z-index: 10;
       pointer-events: none;
     }
 
-    .ui button {
-      pointer-events: auto;
-      min-width: 140px;
-      padding: 14px 18px;
-      border: 0;
-      border-radius: 999px;
-      font-size: 16px;
-      font-weight: 700;
-      cursor: pointer;
-      box-shadow: 0 8px 24px rgba(0,0,0,.35);
-      transition: transform .15s ease, opacity .15s ease;
-    }
-
-    .ui button:active {
-      transform: scale(.96);
-    }
-
-    #launchBtn {
-      background: #ff5a36;
+    .top-card {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(92vw, 520px);
+      box-sizing: border-box;
+      padding: 10px 14px;
+      border-radius: 16px;
       color: #fff;
+      text-align: center;
+      background: rgba(0, 0, 0, 0.55);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      box-shadow: 0 8px 24px rgba(0,0,0,.24);
     }
 
-    #resetBtn {
-      background: #ffffff;
-      color: #222;
+    .top-card strong {
+      display: block;
+      font-size: 17px;
+      margin-bottom: 2px;
     }
 
     #status {
-      position: fixed;
-      top: 16px;
+      font-size: 13px;
+      opacity: .92;
+    }
+
+    .controls {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 24px;
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      padding: 0 14px;
+      pointer-events: auto;
+    }
+
+    button {
+      min-width: 130px;
+      border: 0;
+      border-radius: 999px;
+      padding: 13px 20px;
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(0,0,0,.28);
+      transition: transform .15s ease, opacity .15s ease;
+      touch-action: manipulation;
+    }
+
+    button:active { transform: scale(.96); }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    #feedBtn { background: #2e7d32; }
+    #playBtn { background: #1565c0; }
+
+    .hint {
+      position: absolute;
+      bottom: 84px;
       left: 50%;
       transform: translateX(-50%);
-      z-index: 9999;
-      background: rgba(0,0,0,.65);
       color: #fff;
-      padding: 10px 16px;
+      background: rgba(0,0,0,.48);
+      padding: 6px 10px;
       border-radius: 999px;
-      font-size: 14px;
-      text-align: center;
-      max-width: calc(100vw - 24px);
-      pointer-events: none;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 420px) {
+      button { min-width: 0; flex: 1; max-width: 180px; }
     }
   </style>
 
   <script>
-    AFRAME.registerComponent('rocket-controller', {
+    AFRAME.registerComponent('panda-controller', {
       init: function () {
-        this.baseY = 0.85;
-        this.maxY = 7.5;
-        this.duration = 3200;
-        this.returnDuration = 2200;
-        this.isLaunching = false;
-        this.isReturning = false;
+        this.marker = this.el;
+        this.panda = document.querySelector('#panda');
+        this.bamboo = document.querySelector('#bambooGroup');
+        this.ball = document.querySelector('#ball');
+        this.head = document.querySelector('#pandaHead');
+        this.body = document.querySelector('#pandaBody');
+        this.feedBtn = document.querySelector('#feedBtn');
+        this.playBtn = document.querySelector('#playBtn');
+        this.status = document.querySelector('#status');
+        this.visible = false;
+        this.busy = false;
+        this.crawlPhase = 0;
 
-        this.rocket = this.el;
-        this.flame = this.el.querySelector('#rocketFlame');
-        this.smoke = this.el.querySelector('#rocketSmoke');
+        const setButtons = (enabled) => {
+          this.feedBtn.disabled = !enabled;
+          this.playBtn.disabled = !enabled;
+        };
 
-        this.launch = this.launch.bind(this);
-        this.reset = this.reset.bind(this);
+        setButtons(false);
 
-        window.addEventListener('rocket-launch', this.launch);
-        window.addEventListener('rocket-reset', this.reset);
-      },
-
-      remove: function () {
-        window.removeEventListener('rocket-launch', this.launch);
-        window.removeEventListener('rocket-reset', this.reset);
-      },
-
-      launch: function () {
-        if (this.isLaunching) return;
-
-        this.isLaunching = true;
-        this.isReturning = false;
-
-        this.rocket.removeAttribute('animation__return');
-
-        this.rocket.setAttribute('animation__launch', {
-          property: 'position',
-          to: `0 ${this.maxY} 0`,
-          dur: this.duration,
-          easing: 'easeInCubic'
+        this.marker.addEventListener('markerFound', () => {
+          this.visible = true;
+          setButtons(true);
+          this.status.textContent = 'พบ Hiro Marker แล้ว — แพนด้ากำลังคลานเล่นบนพื้นหญ้า';
         });
 
-        this.rocket.setAttribute('animation__tilt', {
+        this.marker.addEventListener('markerLost', () => {
+          this.visible = false;
+          setButtons(false);
+          this.status.textContent = 'กำลังค้นหา Hiro Marker…';
+        });
+
+        this.feedBtn.addEventListener('click', () => this.feedPanda());
+        this.playBtn.addEventListener('click', () => this.playBall());
+      },
+
+      feedPanda: function () {
+        if (!this.visible || this.busy) return;
+        this.busy = true;
+        this.status.textContent = 'ให้อาหารแล้ว — ไม้ไผ่กำลังส่งไปให้แพนด้า 🐼🎋';
+
+        this.bamboo.setAttribute('visible', true);
+        this.bamboo.setAttribute('animation__move', {
+          property: 'position',
+          from: '-1.35 0.28 0.35',
+          to: '-0.25 0.42 0.2',
+          dur: 1000,
+          easing: 'easeOutQuad'
+        });
+        this.bamboo.setAttribute('animation__tilt', {
+          property: 'rotation',
+          from: '0 0 -35',
+          to: '0 0 15',
+          dur: 1000,
+          easing: 'easeOutQuad'
+        });
+
+        this.head.setAttribute('animation__eat1', {
           property: 'rotation',
           from: '0 0 0',
-          to: '-4 0 3',
-          dur: 700,
+          to: '18 0 0',
           dir: 'alternate',
-          loop: true,
+          loop: 5,
+          dur: 220,
           easing: 'easeInOutSine'
         });
 
-        if (this.flame) {
-          this.flame.setAttribute('visible', true);
-          this.flame.setAttribute('animation__flame', {
+        setTimeout(() => {
+          this.bamboo.setAttribute('animation__out', {
             property: 'scale',
             from: '1 1 1',
-            to: '1.25 1.8 1.25',
-            dur: 130,
-            dir: 'alternate',
-            loop: true,
-            easing: 'linear'
+            to: '0.01 0.01 0.01',
+            dur: 500,
+            easing: 'easeInQuad'
           });
-        }
-
-        if (this.smoke) {
-          this.smoke.setAttribute('visible', true);
-          this.smoke.setAttribute('animation__smoke', {
-            property: 'scale',
-            from: '0.7 0.7 0.7',
-            to: '1.8 1.8 1.8',
-            dur: 700,
-            dir: 'alternate',
-            loop: true,
-            easing: 'easeOutQuad'
-          });
-        }
-
-        setStatus('🚀 จรวดกำลังทะยานขึ้นฟ้า');
+        }, 2500);
 
         setTimeout(() => {
-          this.isLaunching = false;
-          setStatus('🚀 จรวดอยู่เหนือฐาน กด Reset เพื่อกลับลงมา');
-        }, this.duration);
+          this.bamboo.setAttribute('visible', false);
+          this.bamboo.setAttribute('position', '-1.35 0.28 0.35');
+          this.bamboo.setAttribute('rotation', '0 0 -35');
+          this.bamboo.setAttribute('scale', '1 1 1');
+          this.bamboo.removeAttribute('animation__move');
+          this.bamboo.removeAttribute('animation__tilt');
+          this.bamboo.removeAttribute('animation__out');
+          this.head.removeAttribute('animation__eat1');
+          this.head.setAttribute('rotation', '0 0 0');
+          this.status.textContent = 'แพนด้าอิ่มแล้ว! กด “เล่น” เพื่อให้ลูกบอลออกมา';
+          this.busy = false;
+        }, 3200);
       },
 
-      reset: function () {
-        this.isLaunching = false;
-        this.isReturning = true;
+      playBall: function () {
+        if (!this.visible || this.busy) return;
+        this.busy = true;
+        this.status.textContent = 'ลูกบอลมาแล้ว — แพนด้ากำลังเล่นบอล 🐼⚽';
 
-        this.rocket.removeAttribute('animation__launch');
-        this.rocket.removeAttribute('animation__tilt');
+        this.ball.setAttribute('visible', true);
+        this.ball.setAttribute('position', '0.9 0.16 0.2');
+        this.ball.setAttribute('scale', '1 1 1');
 
-        this.rocket.setAttribute('animation__return', {
+        this.ball.setAttribute('animation__roll', {
           property: 'position',
-          to: `0 ${this.baseY} 0`,
-          dur: this.returnDuration,
-          easing: 'easeOutCubic'
+          from: '0.95 0.16 0.25',
+          to: '-0.55 0.16 -0.15',
+          dir: 'alternate',
+          loop: 3,
+          dur: 850,
+          easing: 'easeInOutSine'
+        });
+        this.ball.setAttribute('animation__spin', {
+          property: 'rotation',
+          from: '0 0 0',
+          to: '0 0 720',
+          loop: 6,
+          dur: 850,
+          easing: 'linear'
         });
 
-        this.rocket.setAttribute('rotation', '0 0 0');
-
-        if (this.flame) {
-          this.flame.removeAttribute('animation__flame');
-          this.flame.setAttribute('visible', false);
-          this.flame.setAttribute('scale', '1 1 1');
-        }
-
-        if (this.smoke) {
-          this.smoke.removeAttribute('animation__smoke');
-          this.smoke.setAttribute('visible', false);
-          this.smoke.setAttribute('scale', '1 1 1');
-        }
-
-        setStatus('↩️ จรวดกำลังบินกลับสู่ฐาน');
+        this.panda.setAttribute('animation__pounce', {
+          property: 'position',
+          from: '0 0 0',
+          to: '0.18 0 0.08',
+          dir: 'alternate',
+          loop: 3,
+          dur: 850,
+          easing: 'easeInOutSine'
+        });
 
         setTimeout(() => {
-          this.isReturning = false;
-          setStatus('✅ จรวดกลับสู่ฐานแล้ว');
-        }, this.returnDuration);
+          this.ball.setAttribute('animation__hide', {
+            property: 'scale',
+            from: '1 1 1',
+            to: '0.01 0.01 0.01',
+            dur: 450,
+            easing: 'easeInQuad'
+          });
+        }, 5200);
+
+        setTimeout(() => {
+          this.ball.setAttribute('visible', false);
+          this.ball.setAttribute('scale', '1 1 1');
+          this.ball.removeAttribute('animation__roll');
+          this.ball.removeAttribute('animation__spin');
+          this.ball.removeAttribute('animation__hide');
+          this.panda.removeAttribute('animation__pounce');
+          this.panda.setAttribute('position', '0 0 0');
+          this.status.textContent = 'เล่นเสร็จแล้ว — แพนด้ากลับมาคลานบนพื้นหญ้า';
+          this.busy = false;
+        }, 5750);
+      },
+
+      tick: function (time, delta) {
+        if (!this.visible || this.busy || !this.panda) return;
+        this.crawlPhase += delta * 0.002;
+        const x = Math.sin(this.crawlPhase * 0.55) * 0.28;
+        const z = Math.cos(this.crawlPhase * 0.42) * 0.10;
+        const y = 0.02 + Math.abs(Math.sin(this.crawlPhase * 2.2)) * 0.025;
+        this.panda.object3D.position.set(x, y, z);
+        this.panda.object3D.rotation.y = Math.sin(this.crawlPhase * 0.55) * 0.18;
       }
-    });
-
-    function setStatus(text) {
-      const el = document.getElementById('status');
-      if (el) el.textContent = text;
-    }
-
-    window.addEventListener('DOMContentLoaded', () => {
-      const marker = document.querySelector('a-marker');
-
-      marker.addEventListener('markerFound', () => {
-        setStatus('✅ พบ Hiro Marker แล้ว');
-      });
-
-      marker.addEventListener('markerLost', () => {
-        setStatus('🔎 กรุณาหันกล้องไปที่ Hiro Marker');
-      });
-
-      document.getElementById('launchBtn').addEventListener('click', () => {
-        window.dispatchEvent(new Event('rocket-launch'));
-      });
-
-      document.getElementById('resetBtn').addEventListener('click', () => {
-        window.dispatchEvent(new Event('rocket-reset'));
-      });
     });
   </script>
 </head>
 
 <body>
-  <div id="status">🔎 กรุณาหันกล้องไปที่ Hiro Marker</div>
+  <div id="hud">
+    <div class="top-card">
+      <strong>AR Panda Playground</strong>
+      <div id="status">กำลังค้นหา Hiro Marker…</div>
+    </div>
 
-  <div class="ui">
-    <button id="launchBtn">🚀 Launch</button>
-    <button id="resetBtn">↩️ Reset</button>
+    <div class="hint">อนุญาตใช้กล้อง แล้วหันกล้องไปที่ Hiro Marker</div>
+
+    <div class="controls">
+      <button id="feedBtn" type="button" disabled>🎋 ให้อาหาร</button>
+      <button id="playBtn" type="button" disabled>⚽ เล่น</button>
+    </div>
   </div>
 
   <a-scene
     embedded
     vr-mode-ui="enabled: false"
-    renderer="logarithmicDepthBuffer: true; antialias: true; alpha: true"
-    arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+    renderer="antialias: true; alpha: true; colorManagement: true;"
+    arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono; patternRatio: 0.5;"
   >
-    <a-assets>
-      <a-mixin id="metal" material="metalness: 0.65; roughness: 0.25"></a-mixin>
-    </a-assets>
+    <a-assets></a-assets>
 
-    <a-marker preset="hiro">
+    <a-marker preset="hiro" panda-controller>
+      <!-- พื้นหญ้า -->
+      <a-cylinder position="0 -0.035 0" radius="1.45" height="0.07" color="#5FAE48" segments-radial="48"></a-cylinder>
+      <a-cylinder position="0 -0.078 0" radius="1.30" height="0.04" color="#3C7A32" segments-radial="48"></a-cylinder>
 
-      <!-- Launch Pad -->
-      <a-cylinder
-        position="0 0.08 0"
-        radius="0.72"
-        height="0.16"
-        color="#4d5358"
-        material="metalness: 0.7; roughness: 0.45"
-      ></a-cylinder>
-
-      <a-cylinder
-        position="0 0.18 0"
-        radius="0.54"
-        height="0.06"
-        color="#25282c"
-      ></a-cylinder>
-
-      <!-- Rocket -->
-      <a-entity
-        id="rocket"
-        rocket-controller
-        position="0 0.85 0"
-        rotation="0 0 0"
-      >
-        <!-- Main body -->
-        <a-cylinder
-          position="0 0 0"
-          radius="0.22"
-          height="1.25"
-          color="#e7edf2"
-          mixin="metal"
-        ></a-cylinder>
-
-        <!-- Nose cone -->
-        <a-cone
-          position="0 0.82 0"
-          radius-bottom="0.22"
-          radius-top="0"
-          height="0.55"
-          color="#e94235"
-          mixin="metal"
-        ></a-cone>
-
-        <!-- Window -->
-        <a-cylinder
-          position="0 0.24 0.205"
-          rotation="90 0 0"
-          radius="0.095"
-          height="0.03"
-          color="#45c8ff"
-          material="metalness: 0.25; roughness: 0.15; emissive: #0b4e78; emissiveIntensity: 0.35"
-        ></a-cylinder>
-
-        <!-- Fins -->
-        <a-box
-          position="0.28 -0.42 0"
-          width="0.18"
-          height="0.4"
-          depth="0.08"
-          color="#e94235"
-          rotation="0 0 -20"
-        ></a-box>
-
-        <a-box
-          position="-0.28 -0.42 0"
-          width="0.18"
-          height="0.4"
-          depth="0.08"
-          color="#e94235"
-          rotation="0 0 20"
-        ></a-box>
-
-        <a-box
-          position="0 -0.42 0.28"
-          width="0.08"
-          height="0.4"
-          depth="0.18"
-          color="#e94235"
-          rotation="20 0 0"
-        ></a-box>
-
-        <a-box
-          position="0 -0.42 -0.28"
-          width="0.08"
-          height="0.4"
-          depth="0.18"
-          color="#e94235"
-          rotation="-20 0 0"
-        ></a-box>
-
-        <!-- Engine -->
-        <a-cylinder
-          position="0 -0.71 0"
-          radius="0.13"
-          height="0.18"
-          color="#34383d"
-          mixin="metal"
-        ></a-cylinder>
-
-        <!-- Flame -->
-        <a-cone
-          id="rocketFlame"
-          visible="false"
-          position="0 -1.05 0"
-          radius-bottom="0.03"
-          radius-top="0.17"
-          height="0.55"
-          color="#ff8a00"
-          material="emissive: #ff4d00; emissiveIntensity: 1.5; transparent: true; opacity: 0.95"
-        ></a-cone>
-
-        <!-- Smoke -->
-        <a-sphere
-          id="rocketSmoke"
-          visible="false"
-          position="0 -1.35 0"
-          radius="0.22"
-          color="#d7d7d7"
-          material="transparent: true; opacity: 0.45"
-        ></a-sphere>
+      <!-- กอหญ้ารอบๆ -->
+      <a-entity position="0 0 0">
+        <a-cone position="-0.92 0.09 -0.55" radius-bottom="0.05" radius-top="0" height="0.24" color="#3C8A3E"></a-cone>
+        <a-cone position="-0.76 0.08 -0.65" radius-bottom="0.045" radius-top="0" height="0.20" color="#4B9C45"></a-cone>
+        <a-cone position="0.95 0.08 -0.42" radius-bottom="0.05" radius-top="0" height="0.22" color="#3C8A3E"></a-cone>
+        <a-cone position="0.72 0.08 0.70" radius-bottom="0.045" radius-top="0" height="0.22" color="#4B9C45"></a-cone>
+        <a-cone position="-0.82 0.08 0.63" radius-bottom="0.05" radius-top="0" height="0.22" color="#3C8A3E"></a-cone>
       </a-entity>
 
-      <!-- Ambient helper light -->
-      <a-light type="ambient" color="#ffffff" intensity="0.8"></a-light>
-      <a-light type="directional" color="#ffffff" intensity="1.2" position="1 3 2"></a-light>
+      <!-- Panda แบบ low-poly / ตุ๊กตา -->
+      <a-entity id="panda" position="0 0 0" rotation="0 0 0" scale="0.95 0.95 0.95">
+        <a-entity id="pandaBody">
+          <!-- ลำตัวนอนคลาน -->
+          <a-sphere position="0 0.40 0" radius="0.40" scale="1.18 0.72 0.88" color="#F7F7F7"></a-sphere>
+          <a-sphere position="-0.20 0.39 0" radius="0.27" scale="0.92 0.80 0.95" color="#111111"></a-sphere>
+
+          <!-- ขา -->
+          <a-capsule position="-0.26 0.21 0.28" radius="0.10" height="0.30" rotation="90 0 18" color="#111111"></a-capsule>
+          <a-capsule position="-0.26 0.21 -0.28" radius="0.10" height="0.30" rotation="90 0 -18" color="#111111"></a-capsule>
+          <a-capsule position="0.28 0.22 0.27" radius="0.10" height="0.30" rotation="90 0 -18" color="#111111"></a-capsule>
+          <a-capsule position="0.28 0.22 -0.27" radius="0.10" height="0.30" rotation="90 0 18" color="#111111"></a-capsule>
+        </a-entity>
+
+        <!-- หัว -->
+        <a-entity id="pandaHead" position="0.43 0.54 0">
+          <a-sphere radius="0.31" color="#FCFCFC"></a-sphere>
+
+          <!-- หู -->
+          <a-sphere position="-0.12 0.24 0.20" radius="0.11" color="#111111"></a-sphere>
+          <a-sphere position="-0.12 0.24 -0.20" radius="0.11" color="#111111"></a-sphere>
+
+          <!-- ปื้นตา -->
+          <a-sphere position="0.23 0.07 0.13" radius="0.092" scale="0.55 1.15 1" color="#111111"></a-sphere>
+          <a-sphere position="0.23 0.07 -0.13" radius="0.092" scale="0.55 1.15 1" color="#111111"></a-sphere>
+
+          <!-- ตา -->
+          <a-sphere position="0.283 0.08 0.13" radius="0.028" color="#FFFFFF"></a-sphere>
+          <a-sphere position="0.283 0.08 -0.13" radius="0.028" color="#FFFFFF"></a-sphere>
+          <a-sphere position="0.305 0.08 0.13" radius="0.012" color="#222222"></a-sphere>
+          <a-sphere position="0.305 0.08 -0.13" radius="0.012" color="#222222"></a-sphere>
+
+          <!-- จมูก + ปาก -->
+          <a-sphere position="0.30 -0.06 0" radius="0.055" scale="0.72 0.62 1" color="#101010"></a-sphere>
+          <a-torus position="0.304 -0.12 0" rotation="0 90 0" radius="0.055" radius-tubular="0.012" arc="180" color="#333333"></a-torus>
+        </a-entity>
+      </a-entity>
+
+      <!-- ไม้ไผ่สำหรับปุ่มให้อาหาร -->
+      <a-entity id="bambooGroup" visible="false" position="-1.35 0.28 0.35" rotation="0 0 -35">
+        <a-cylinder radius="0.035" height="0.75" color="#67A844"></a-cylinder>
+        <a-cylinder position="0 0.16 0" radius="0.039" height="0.025" color="#3F7C2D"></a-cylinder>
+        <a-cylinder position="0 -0.17 0" radius="0.039" height="0.025" color="#3F7C2D"></a-cylinder>
+        <a-sphere position="0.11 0.16 0" radius="0.11" scale="1.3 0.35 0.55" rotation="0 0 28" color="#4C9C3D"></a-sphere>
+        <a-sphere position="-0.10 -0.05 0" radius="0.10" scale="1.25 0.32 0.52" rotation="0 0 -28" color="#4C9C3D"></a-sphere>
+      </a-entity>
+
+      <!-- ลูกบอลสำหรับปุ่มเล่น -->
+      <a-entity id="ball" visible="false" position="0.9 0.16 0.2">
+        <a-sphere radius="0.16" color="#F44336"></a-sphere>
+        <a-torus radius="0.11" radius-tubular="0.018" color="#FFFFFF" rotation="90 0 0"></a-torus>
+        <a-torus radius="0.11" radius-tubular="0.018" color="#FFFFFF" rotation="0 90 0"></a-torus>
+      </a-entity>
     </a-marker>
 
     <a-entity camera></a-entity>
