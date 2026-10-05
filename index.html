@@ -2,369 +2,157 @@
 <html lang="th">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <meta name="theme-color" content="#1f5131" />
-  <title>AR Panda - Hiro Marker</title>
-
-  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.7/aframe/build/aframe-ar.js"></script>
-
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+  <meta name="theme-color" content="#17351f" />
+  <title>Panda Garden AR — Hiro Marker</title>
+  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.7/aframe/build/aframe-ar.js"></script>
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #000;
-    }
-
-    #hud {
-      position: fixed;
-      inset: 0;
-      z-index: 10;
-      pointer-events: none;
-    }
-
-    .top-card {
-      position: absolute;
-      top: 14px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: min(92vw, 520px);
-      box-sizing: border-box;
-      padding: 10px 14px;
-      border-radius: 16px;
-      color: #fff;
-      text-align: center;
-      background: rgba(0, 0, 0, 0.55);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      box-shadow: 0 8px 24px rgba(0,0,0,.24);
-    }
-
-    .top-card strong {
-      display: block;
-      font-size: 17px;
-      margin-bottom: 2px;
-    }
-
-    #status {
-      font-size: 13px;
-      opacity: .92;
-    }
-
-    .controls {
-      position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 24px;
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      padding: 0 14px;
-      pointer-events: auto;
-    }
-
-    button {
-      min-width: 130px;
-      border: 0;
-      border-radius: 999px;
-      padding: 13px 20px;
-      font-size: 16px;
-      font-weight: 700;
-      color: #fff;
-      cursor: pointer;
-      box-shadow: 0 8px 20px rgba(0,0,0,.28);
-      transition: transform .15s ease, opacity .15s ease;
-      touch-action: manipulation;
-    }
-
-    button:active { transform: scale(.96); }
-    button:disabled { opacity: .45; cursor: not-allowed; }
-    #feedBtn { background: #2e7d32; }
-    #playBtn { background: #1565c0; }
-
-    .hint {
-      position: absolute;
-      bottom: 84px;
-      left: 50%;
-      transform: translateX(-50%);
-      color: #fff;
-      background: rgba(0,0,0,.48);
-      padding: 6px 10px;
-      border-radius: 999px;
-      font-size: 12px;
-      white-space: nowrap;
-    }
-
-    @media (max-width: 420px) {
-      button { min-width: 0; flex: 1; max-width: 180px; }
-    }
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#000}
+    .hud{position:fixed;inset:0;z-index:20;pointer-events:none;display:flex;flex-direction:column;justify-content:space-between;padding:18px;box-sizing:border-box}
+    .tip{align-self:center;color:#fff;background:rgba(14,40,22,.78);backdrop-filter:blur(8px);padding:10px 16px;border:1px solid rgba(255,255,255,.22);border-radius:999px;font-size:14px;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.22)}
+    .controls{display:flex;justify-content:center;gap:12px;pointer-events:auto;padding-bottom:max(6px,env(safe-area-inset-bottom))}
+    button{border:0;border-radius:18px;padding:13px 20px;font-size:16px;font-weight:800;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.3);transition:.18s transform,.18s opacity;min-width:126px}
+    button:active{transform:scale(.96)} button:disabled{opacity:.55}
+    #feed{background:#b7ee71;color:#18320d} #play{background:#ffe36e;color:#463900}
+    #status{position:fixed;left:50%;bottom:92px;transform:translateX(-50%);z-index:22;color:white;background:rgba(0,0,0,.55);padding:8px 13px;border-radius:12px;font-size:13px;opacity:0;transition:.25s;pointer-events:none;white-space:nowrap}
+    #status.show{opacity:1}
   </style>
-
-  <script>
-    AFRAME.registerComponent('panda-controller', {
-      init: function () {
-        this.marker = this.el;
-        this.panda = document.querySelector('#panda');
-        this.bamboo = document.querySelector('#bambooGroup');
-        this.ball = document.querySelector('#ball');
-        this.head = document.querySelector('#pandaHead');
-        this.body = document.querySelector('#pandaBody');
-        this.feedBtn = document.querySelector('#feedBtn');
-        this.playBtn = document.querySelector('#playBtn');
-        this.status = document.querySelector('#status');
-        this.visible = false;
-        this.busy = false;
-        this.crawlPhase = 0;
-
-        const setButtons = (enabled) => {
-          this.feedBtn.disabled = !enabled;
-          this.playBtn.disabled = !enabled;
-        };
-
-        setButtons(false);
-
-        this.marker.addEventListener('markerFound', () => {
-          this.visible = true;
-          setButtons(true);
-          this.status.textContent = 'พบ Hiro Marker แล้ว — แพนด้ากำลังคลานเล่นบนพื้นหญ้า';
-        });
-
-        this.marker.addEventListener('markerLost', () => {
-          this.visible = false;
-          setButtons(false);
-          this.status.textContent = 'กำลังค้นหา Hiro Marker…';
-        });
-
-        this.feedBtn.addEventListener('click', () => this.feedPanda());
-        this.playBtn.addEventListener('click', () => this.playBall());
-      },
-
-      feedPanda: function () {
-        if (!this.visible || this.busy) return;
-        this.busy = true;
-        this.status.textContent = 'ให้อาหารแล้ว — ไม้ไผ่กำลังส่งไปให้แพนด้า 🐼🎋';
-
-        this.bamboo.setAttribute('visible', true);
-        this.bamboo.setAttribute('animation__move', {
-          property: 'position',
-          from: '-1.35 0.28 0.35',
-          to: '-0.25 0.42 0.2',
-          dur: 1000,
-          easing: 'easeOutQuad'
-        });
-        this.bamboo.setAttribute('animation__tilt', {
-          property: 'rotation',
-          from: '0 0 -35',
-          to: '0 0 15',
-          dur: 1000,
-          easing: 'easeOutQuad'
-        });
-
-        this.head.setAttribute('animation__eat1', {
-          property: 'rotation',
-          from: '0 0 0',
-          to: '18 0 0',
-          dir: 'alternate',
-          loop: 5,
-          dur: 220,
-          easing: 'easeInOutSine'
-        });
-
-        setTimeout(() => {
-          this.bamboo.setAttribute('animation__out', {
-            property: 'scale',
-            from: '1 1 1',
-            to: '0.01 0.01 0.01',
-            dur: 500,
-            easing: 'easeInQuad'
-          });
-        }, 2500);
-
-        setTimeout(() => {
-          this.bamboo.setAttribute('visible', false);
-          this.bamboo.setAttribute('position', '-1.35 0.28 0.35');
-          this.bamboo.setAttribute('rotation', '0 0 -35');
-          this.bamboo.setAttribute('scale', '1 1 1');
-          this.bamboo.removeAttribute('animation__move');
-          this.bamboo.removeAttribute('animation__tilt');
-          this.bamboo.removeAttribute('animation__out');
-          this.head.removeAttribute('animation__eat1');
-          this.head.setAttribute('rotation', '0 0 0');
-          this.status.textContent = 'แพนด้าอิ่มแล้ว! กด “เล่น” เพื่อให้ลูกบอลออกมา';
-          this.busy = false;
-        }, 3200);
-      },
-
-      playBall: function () {
-        if (!this.visible || this.busy) return;
-        this.busy = true;
-        this.status.textContent = 'ลูกบอลมาแล้ว — แพนด้ากำลังเล่นบอล 🐼⚽';
-
-        this.ball.setAttribute('visible', true);
-        this.ball.setAttribute('position', '0.9 0.16 0.2');
-        this.ball.setAttribute('scale', '1 1 1');
-
-        this.ball.setAttribute('animation__roll', {
-          property: 'position',
-          from: '0.95 0.16 0.25',
-          to: '-0.55 0.16 -0.15',
-          dir: 'alternate',
-          loop: 3,
-          dur: 850,
-          easing: 'easeInOutSine'
-        });
-        this.ball.setAttribute('animation__spin', {
-          property: 'rotation',
-          from: '0 0 0',
-          to: '0 0 720',
-          loop: 6,
-          dur: 850,
-          easing: 'linear'
-        });
-
-        this.panda.setAttribute('animation__pounce', {
-          property: 'position',
-          from: '0 0 0',
-          to: '0.18 0 0.08',
-          dir: 'alternate',
-          loop: 3,
-          dur: 850,
-          easing: 'easeInOutSine'
-        });
-
-        setTimeout(() => {
-          this.ball.setAttribute('animation__hide', {
-            property: 'scale',
-            from: '1 1 1',
-            to: '0.01 0.01 0.01',
-            dur: 450,
-            easing: 'easeInQuad'
-          });
-        }, 5200);
-
-        setTimeout(() => {
-          this.ball.setAttribute('visible', false);
-          this.ball.setAttribute('scale', '1 1 1');
-          this.ball.removeAttribute('animation__roll');
-          this.ball.removeAttribute('animation__spin');
-          this.ball.removeAttribute('animation__hide');
-          this.panda.removeAttribute('animation__pounce');
-          this.panda.setAttribute('position', '0 0 0');
-          this.status.textContent = 'เล่นเสร็จแล้ว — แพนด้ากลับมาคลานบนพื้นหญ้า';
-          this.busy = false;
-        }, 5750);
-      },
-
-      tick: function (time, delta) {
-        if (!this.visible || this.busy || !this.panda) return;
-        this.crawlPhase += delta * 0.002;
-        const x = Math.sin(this.crawlPhase * 0.55) * 0.28;
-        const z = Math.cos(this.crawlPhase * 0.42) * 0.10;
-        const y = 0.02 + Math.abs(Math.sin(this.crawlPhase * 2.2)) * 0.025;
-        this.panda.object3D.position.set(x, y, z);
-        this.panda.object3D.rotation.y = Math.sin(this.crawlPhase * 0.55) * 0.18;
-      }
-    });
-  </script>
 </head>
-
 <body>
-  <div id="hud">
-    <div class="top-card">
-      <strong>AR Panda Playground</strong>
-      <div id="status">กำลังค้นหา Hiro Marker…</div>
-    </div>
-
-    <div class="hint">อนุญาตใช้กล้อง แล้วหันกล้องไปที่ Hiro Marker</div>
-
+  <div class="hud">
+    <div class="tip" id="tip">ส่องกล้องไปที่ Hiro Marker เพื่อพบแพนด้าน้อย 🐼</div>
     <div class="controls">
-      <button id="feedBtn" type="button" disabled>🎋 ให้อาหาร</button>
-      <button id="playBtn" type="button" disabled>⚽ เล่น</button>
+      <button id="feed">🎋 ให้อาหาร</button>
+      <button id="play">⚽ เล่นด้วยกัน</button>
     </div>
   </div>
+  <div id="status"></div>
 
-  <a-scene
-    embedded
-    vr-mode-ui="enabled: false"
-    renderer="antialias: true; alpha: true; colorManagement: true;"
-    arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono; patternRatio: 0.5;"
-  >
-    <a-assets></a-assets>
+  <a-scene embedded vr-mode-ui="enabled:false" renderer="antialias:true; alpha:true; colorManagement:true" arjs="sourceType:webcam; debugUIEnabled:false; detectionMode:mono; patternRatio:0.75;">
+    <a-assets>
+      <a-mixin id="furWhite" material="color:#fffaf0; roughness:.95"></a-mixin>
+      <a-mixin id="furBlack" material="color:#171717; roughness:.95"></a-mixin>
+    </a-assets>
 
-    <a-marker preset="hiro" panda-controller>
-      <!-- พื้นหญ้า -->
-      <a-cylinder position="0 -0.035 0" radius="1.45" height="0.07" color="#5FAE48" segments-radial="48"></a-cylinder>
-      <a-cylinder position="0 -0.078 0" radius="1.30" height="0.04" color="#3C7A32" segments-radial="48"></a-cylinder>
+    <a-marker id="hiro" preset="hiro" emitevents="true">
+      <!-- Scene is rotated so the panda appears upright/front-facing while standing on the marker plane. -->
+      <a-entity id="world" rotation="-90 0 0" scale="0.9 0.9 0.9">
+        <!-- grass patch -->
+        <a-cylinder position="0 0.015 0" radius="1.28" height="0.035" material="color:#5ea842; roughness:1"></a-cylinder>
+        <a-cylinder position="0 0.038 0" radius="1.18" height="0.018" material="color:#78c850; roughness:1"></a-cylinder>
+        <!-- little grass blades -->
+        <a-entity id="grass"></a-entity>
 
-      <!-- กอหญ้ารอบๆ -->
-      <a-entity position="0 0 0">
-        <a-cone position="-0.92 0.09 -0.55" radius-bottom="0.05" radius-top="0" height="0.24" color="#3C8A3E"></a-cone>
-        <a-cone position="-0.76 0.08 -0.65" radius-bottom="0.045" radius-top="0" height="0.20" color="#4B9C45"></a-cone>
-        <a-cone position="0.95 0.08 -0.42" radius-bottom="0.05" radius-top="0" height="0.22" color="#3C8A3E"></a-cone>
-        <a-cone position="0.72 0.08 0.70" radius-bottom="0.045" radius-top="0" height="0.22" color="#4B9C45"></a-cone>
-        <a-cone position="-0.82 0.08 0.63" radius-bottom="0.05" radius-top="0" height="0.22" color="#3C8A3E"></a-cone>
-      </a-entity>
-
-      <!-- Panda แบบ low-poly / ตุ๊กตา -->
-      <a-entity id="panda" position="0 0 0" rotation="0 0 0" scale="0.95 0.95 0.95">
-        <a-entity id="pandaBody">
-          <!-- ลำตัวนอนคลาน -->
-          <a-sphere position="0 0.40 0" radius="0.40" scale="1.18 0.72 0.88" color="#F7F7F7"></a-sphere>
-          <a-sphere position="-0.20 0.39 0" radius="0.27" scale="0.92 0.80 0.95" color="#111111"></a-sphere>
-
-          <!-- ขา -->
-          <a-capsule position="-0.26 0.21 0.28" radius="0.10" height="0.30" rotation="90 0 18" color="#111111"></a-capsule>
-          <a-capsule position="-0.26 0.21 -0.28" radius="0.10" height="0.30" rotation="90 0 -18" color="#111111"></a-capsule>
-          <a-capsule position="0.28 0.22 0.27" radius="0.10" height="0.30" rotation="90 0 -18" color="#111111"></a-capsule>
-          <a-capsule position="0.28 0.22 -0.27" radius="0.10" height="0.30" rotation="90 0 18" color="#111111"></a-capsule>
+        <!-- cute crawling panda, face toward camera/front (z positive) -->
+        <a-entity id="panda" position="0 0.36 0.03" rotation="0 0 0">
+          <!-- body -->
+          <a-sphere position="0 0.13 -0.20" scale="0.56 0.38 0.72" mixin="furWhite"></a-sphere>
+          <a-sphere position="0 0.14 -0.42" scale="0.48 0.31 0.44" mixin="furBlack"></a-sphere>
+          <!-- head -->
+          <a-sphere position="0 0.39 0.22" scale="0.48 0.45 0.43" mixin="furWhite"></a-sphere>
+          <!-- ears -->
+          <a-sphere position="-0.32 0.67 0.18" radius="0.16" mixin="furBlack"></a-sphere>
+          <a-sphere position="0.32 0.67 0.18" radius="0.16" mixin="furBlack"></a-sphere>
+          <!-- eye patches -->
+          <a-sphere position="-0.18 0.46 0.575" scale="0.14 0.18 0.055" rotation="0 0 -18" mixin="furBlack"></a-sphere>
+          <a-sphere position="0.18 0.46 0.575" scale="0.14 0.18 0.055" rotation="0 0 18" mixin="furBlack"></a-sphere>
+          <!-- eyes -->
+          <a-sphere position="-0.17 0.48 0.625" radius="0.047" material="color:#231f20"></a-sphere>
+          <a-sphere position="0.17 0.48 0.625" radius="0.047" material="color:#231f20"></a-sphere>
+          <a-sphere position="-0.153 0.502 0.663" radius="0.014" material="color:#ffffff"></a-sphere>
+          <a-sphere position="0.187 0.502 0.663" radius="0.014" material="color:#ffffff"></a-sphere>
+          <!-- muzzle / nose / smile -->
+          <a-sphere position="0 0.32 0.61" scale="0.20 0.13 0.075" material="color:#fff5df;roughness:1"></a-sphere>
+          <a-sphere position="0 0.37 0.68" scale="0.07 0.045 0.035" material="color:#171717"></a-sphere>
+          <a-torus position="-0.045 0.30 0.675" radius="0.055" radius-tubular="0.012" arc="95" rotation="0 0 205" material="color:#4d2727"></a-torus>
+          <a-torus position="0.045 0.30 0.675" radius="0.055" radius-tubular="0.012" arc="95" rotation="0 0 250" material="color:#4d2727"></a-torus>
+          <!-- cheeks -->
+          <a-sphere position="-0.29 0.32 0.59" scale="0.07 0.035 0.025" material="color:#ffb3b3;opacity:.7;transparent:true"></a-sphere>
+          <a-sphere position="0.29 0.32 0.59" scale="0.07 0.035 0.025" material="color:#ffb3b3;opacity:.7;transparent:true"></a-sphere>
+          <!-- crawling paws -->
+          <a-sphere id="pawL" position="-0.35 -0.02 0.28" scale="0.18 0.13 0.34" rotation="18 0 -18" mixin="furBlack"></a-sphere>
+          <a-sphere id="pawR" position="0.35 -0.02 0.28" scale="0.18 0.13 0.34" rotation="18 0 18" mixin="furBlack"></a-sphere>
+          <a-sphere position="-0.34 0.00 -0.50" scale="0.20 0.15 0.28" mixin="furBlack"></a-sphere>
+          <a-sphere position="0.34 0.00 -0.50" scale="0.20 0.15 0.28" mixin="furBlack"></a-sphere>
         </a-entity>
 
-        <!-- หัว -->
-        <a-entity id="pandaHead" position="0.43 0.54 0">
-          <a-sphere radius="0.31" color="#FCFCFC"></a-sphere>
-
-          <!-- หู -->
-          <a-sphere position="-0.12 0.24 0.20" radius="0.11" color="#111111"></a-sphere>
-          <a-sphere position="-0.12 0.24 -0.20" radius="0.11" color="#111111"></a-sphere>
-
-          <!-- ปื้นตา -->
-          <a-sphere position="0.23 0.07 0.13" radius="0.092" scale="0.55 1.15 1" color="#111111"></a-sphere>
-          <a-sphere position="0.23 0.07 -0.13" radius="0.092" scale="0.55 1.15 1" color="#111111"></a-sphere>
-
-          <!-- ตา -->
-          <a-sphere position="0.283 0.08 0.13" radius="0.028" color="#FFFFFF"></a-sphere>
-          <a-sphere position="0.283 0.08 -0.13" radius="0.028" color="#FFFFFF"></a-sphere>
-          <a-sphere position="0.305 0.08 0.13" radius="0.012" color="#222222"></a-sphere>
-          <a-sphere position="0.305 0.08 -0.13" radius="0.012" color="#222222"></a-sphere>
-
-          <!-- จมูก + ปาก -->
-          <a-sphere position="0.30 -0.06 0" radius="0.055" scale="0.72 0.62 1" color="#101010"></a-sphere>
-          <a-torus position="0.304 -0.12 0" rotation="0 90 0" radius="0.055" radius-tubular="0.012" arc="180" color="#333333"></a-torus>
+        <!-- bamboo appears during feed -->
+        <a-entity id="bamboo" visible="false" position="0.78 0.28 0.78" rotation="0 0 55">
+          <a-cylinder radius="0.035" height="0.75" material="color:#77a93f" rotation="0 0 0"></a-cylinder>
+          <a-torus position="0 .18 0" radius=".038" radius-tubular=".008" material="color:#456f2d"></a-torus>
+          <a-torus position="0 -.18 0" radius=".038" radius-tubular=".008" material="color:#456f2d"></a-torus>
+          <a-sphere position=".10 .17 0" scale=".18 .055 .06" rotation="0 0 -25" material="color:#3f8c3c"></a-sphere>
+          <a-sphere position="-.10 -.08 0" scale=".18 .055 .06" rotation="0 0 25" material="color:#4a9d45"></a-sphere>
         </a-entity>
-      </a-entity>
 
-      <!-- ไม้ไผ่สำหรับปุ่มให้อาหาร -->
-      <a-entity id="bambooGroup" visible="false" position="-1.35 0.28 0.35" rotation="0 0 -35">
-        <a-cylinder radius="0.035" height="0.75" color="#67A844"></a-cylinder>
-        <a-cylinder position="0 0.16 0" radius="0.039" height="0.025" color="#3F7C2D"></a-cylinder>
-        <a-cylinder position="0 -0.17 0" radius="0.039" height="0.025" color="#3F7C2D"></a-cylinder>
-        <a-sphere position="0.11 0.16 0" radius="0.11" scale="1.3 0.35 0.55" rotation="0 0 28" color="#4C9C3D"></a-sphere>
-        <a-sphere position="-0.10 -0.05 0" radius="0.10" scale="1.25 0.32 0.52" rotation="0 0 -28" color="#4C9C3D"></a-sphere>
-      </a-entity>
-
-      <!-- ลูกบอลสำหรับปุ่มเล่น -->
-      <a-entity id="ball" visible="false" position="0.9 0.16 0.2">
-        <a-sphere radius="0.16" color="#F44336"></a-sphere>
-        <a-torus radius="0.11" radius-tubular="0.018" color="#FFFFFF" rotation="90 0 0"></a-torus>
-        <a-torus radius="0.11" radius-tubular="0.018" color="#FFFFFF" rotation="0 90 0"></a-torus>
+        <!-- ball appears during play -->
+        <a-entity id="ball" visible="false" position="-0.85 0.18 0.62">
+          <a-sphere radius="0.18" material="color:#ffcc3d;roughness:.75"></a-sphere>
+          <a-torus radius="0.13" radius-tubular="0.018" rotation="90 0 0" material="color:#ef6c52"></a-torus>
+          <a-torus radius="0.13" radius-tubular="0.018" rotation="0 90 0" material="color:#65a8e8"></a-torus>
+        </a-entity>
       </a-entity>
     </a-marker>
-
     <a-entity camera></a-entity>
   </a-scene>
+
+<script>
+(() => {
+  const marker = document.querySelector('#hiro');
+  const panda = document.querySelector('#panda');
+  const bamboo = document.querySelector('#bamboo');
+  const ball = document.querySelector('#ball');
+  const pawL = document.querySelector('#pawL');
+  const pawR = document.querySelector('#pawR');
+  const feedBtn = document.querySelector('#feed');
+  const playBtn = document.querySelector('#play');
+  const tip = document.querySelector('#tip');
+  const status = document.querySelector('#status');
+  let visible = false, busy = false;
+
+  // deterministic decorative grass
+  const grass = document.querySelector('#grass');
+  const blades = [
+    [-.9,.09,-.5,8],[-.72,.09,.62,-9],[-.45,.09,-.88,13],[-.12,.09,.87,-5],[.22,.09,-.88,-10],[.52,.09,.76,11],[.82,.09,-.44,-8],[.94,.09,.18,5],[-.96,.09,.12,-6],[-.5,.09,.45,9],[.48,.09,-.55,-11]
+  ];
+  blades.forEach(([x,y,z,r])=>{
+    const e=document.createElement('a-cone');
+    e.setAttribute('position',`${x} ${y} ${z}`); e.setAttribute('radius-bottom','.035'); e.setAttribute('radius-top','.005');
+    e.setAttribute('height','.20'); e.setAttribute('rotation',`0 0 ${r}`); e.setAttribute('material','color:#3d8c39;roughness:1'); grass.appendChild(e);
+  });
+
+  function msg(t){status.textContent=t;status.classList.add('show');clearTimeout(msg.t);msg.t=setTimeout(()=>status.classList.remove('show'),1800)}
+  marker.addEventListener('markerFound',()=>{visible=true;tip.textContent='เจอแพนด้าน้อยแล้ว! เลือกให้อาหารหรือเล่นได้เลย 🐼';});
+  marker.addEventListener('markerLost',()=>{visible=false;tip.textContent='ส่องกล้องไปที่ Hiro Marker เพื่อพบแพนด้าน้อย 🐼';});
+  function ready(){if(!visible){msg('กรุณาส่องกล้องให้เห็น Hiro Marker ก่อน');return false} if(busy){msg('แพนด้าน้อยกำลังเล่นอยู่ 😊');return false} return true}
+  const wait = ms => new Promise(r=>setTimeout(r,ms));
+
+  feedBtn.addEventListener('click', async()=>{
+    if(!ready())return; busy=true; feedBtn.disabled=playBtn.disabled=true; bamboo.setAttribute('visible',true); msg('ไม้ไผ่มาแล้ว 🎋');
+    bamboo.setAttribute('animation__move','property: position; from: 0.78 0.28 0.78; to: 0.18 0.35 0.58; dur:1100; easing:easeOutQuad');
+    bamboo.setAttribute('animation__turn','property: rotation; from:0 0 55; to:0 0 90; dur:1100');
+    pawR.setAttribute('animation__grab','property:rotation; to:-25 0 38; dur:650; dir:alternate; loop:3');
+    await wait(1100);
+    panda.setAttribute('animation__nom','property:position; from:0 .36 .03; to:0 .33 .08; dur:260; dir:alternate; loop:5; easing:easeInOutSine');
+    msg('งั่ม ๆ อร่อยจัง! 💚'); await wait(1900);
+    bamboo.removeAttribute('animation__move'); bamboo.removeAttribute('animation__turn'); bamboo.setAttribute('visible',false); bamboo.setAttribute('position','0.78 0.28 0.78'); bamboo.setAttribute('rotation','0 0 55');
+    panda.removeAttribute('animation__nom'); panda.setAttribute('position','0 .36 .03'); pawR.removeAttribute('animation__grab'); pawR.setAttribute('rotation','18 0 18');
+    busy=false; feedBtn.disabled=playBtn.disabled=false;
+  });
+
+  playBtn.addEventListener('click', async()=>{
+    if(!ready())return; busy=true; feedBtn.disabled=playBtn.disabled=true; ball.setAttribute('visible',true); msg('มาเล่นบอลกัน! ⚽');
+    ball.setAttribute('animation__roll','property:position; from:-.85 .18 .62; to:.78 .18 .48; dur:1150; dir:alternate; loop:3; easing:easeInOutSine');
+    ball.setAttribute('animation__spin','property:rotation; from:0 0 0; to:360 180 360; dur:900; loop:4; easing:linear');
+    panda.setAttribute('animation__play','property:position; from:0 .36 .03; to:.16 .39 .13; dur:560; dir:alternate; loop:6; easing:easeInOutSine');
+    pawL.setAttribute('animation__tap','property:rotation; from:18 0 -18; to:-30 0 -48; dur:420; dir:alternate; loop:7');
+    await wait(3600);
+    ball.removeAttribute('animation__roll');ball.removeAttribute('animation__spin');ball.setAttribute('visible',false);ball.setAttribute('position','-.85 .18 .62');ball.setAttribute('rotation','0 0 0');
+    panda.removeAttribute('animation__play');panda.setAttribute('position','0 .36 .03');pawL.removeAttribute('animation__tap');pawL.setAttribute('rotation','18 0 -18');
+    busy=false; feedBtn.disabled=playBtn.disabled=false; msg('แพนด้าน้อยสนุกมาก! 🐼✨');
+  });
+})();
+</script>
 </body>
 </html>
