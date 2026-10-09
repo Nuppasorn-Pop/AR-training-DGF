@@ -1,652 +1,229 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>น้องหมีแพนด้า WebAR - Interactive Panda AR Experience</title>
-    
-    <!-- Tailwind CSS for UI -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- A-Frame 1.3.0 -->
-    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-    
-    <!-- AR.js for A-Frame -->
-    <script src="https://raw.githack.com/AR-js-org/AR.js/3.4.5/aframe/build/aframe-ar.js"></script>
-    
-    <!-- Google Fonts Prompt -->
-    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;600;700&display=swap" rel="stylesheet">
-
-    <style>
-        body {
-            font-family: 'Prompt', sans-serif;
-            margin: 0;
-            overflow: hidden;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-        
-        /* Glassmorphism Styling */
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.5);
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-        }
-
-        .glass-btn {
-            background: linear-gradient(135deg, rgba(255,255,255,0.9), rgba(240,240,250,0.7));
-            backdrop-filter: blur(8px);
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            border: 1px solid rgba(255, 255, 255, 0.8);
-        }
-
-        .glass-btn:active {
-            transform: scale(0.92);
-        }
-
-        /* Floating particles CSS animation */
-        @keyframes floatUp {
-            0% { transform: translateY(0) scale(0.8); opacity: 1; }
-            100% { transform: translateY(-80px) scale(1.3); opacity: 0; }
-        }
-
-        .particle-emoji {
-            position: absolute;
-            pointer-events: none;
-            font-size: 2rem;
-            animation: floatUp 1.5s ease-out forwards;
-            z-index: 50;
-        }
-
-        /* AR Video Overlay fix */
-        #arjs-video {
-            max-width: none !important;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <title>AR Panda Mood — Hiro Marker</title>
+  <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; overflow: hidden; font-family: system-ui, -apple-system, "Noto Sans Thai", sans-serif; background: #111827; }
+    .hud { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
+    .top { position: absolute; top: max(14px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); width: min(94vw, 460px); padding: 12px 16px; border-radius: 17px; text-align: center; background: rgba(15,23,42,.78); color: white; box-shadow: 0 8px 28px #0004; }
+    .top h1 { font-size: 17px; margin: 0 0 3px; }
+    .top p { font-size: 12px; margin: 0; color: #dbeafe; }
+    .controls { position: absolute; bottom: max(24px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); display: flex; gap: 12px; justify-content: center; pointer-events: auto; width: 100%; padding: 0 10px; }
+    button { appearance: none; min-width: 134px; padding: 15px 20px; border: 2px solid #ffffff80; border-radius: 18px; font-size: 17px; font-weight: 800; cursor: pointer; color: white; box-shadow: 0 6px 20px #0005; transition: transform .15s, filter .15s, outline-color .15s; }
+    button:active { transform: scale(.96); }
+    button[aria-pressed="true"] { outline: 3px solid white; outline-offset: 2px; filter: brightness(1.13); }
+    #sadBtn { background: linear-gradient(135deg, #4969b5, #293b80); }
+    #happyBtn { background: linear-gradient(135deg, #f59e0b, #ea580c); }
+    .status { position: absolute; top: 103px; left: 50%; transform: translateX(-50%); padding: 7px 14px; border-radius: 99px; background: #0f172acc; color: #fff; font-size: 12px; text-align: center; max-width: 92vw; }
+    .bottom-tip { position: absolute; bottom: calc(max(24px, env(safe-area-inset-bottom)) + 80px); left: 50%; transform: translateX(-50%); font-size: 11px; color: white; text-shadow: 0 1px 4px black; white-space: nowrap; }
+    .a-enter-vr { display: none !important; }
+    @media (max-width: 380px) { button { min-width: 120px; padding: 13px; font-size: 15px; } }
+  </style>
 </head>
-<body class="bg-slate-900 text-slate-800 antialiased overflow-hidden">
-
-    <!-- Top Header & Status Bar -->
-    <div class="fixed top-3 left-3 right-3 z-30 flex justify-between items-center pointer-events-none">
-        <div class="glass-panel px-4 py-2 rounded-2xl flex items-center space-x-3 pointer-events-auto shadow-lg">
-            <div class="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-xl shadow-inner">
-                🐼
-            </div>
-            <div>
-                <h1 class="text-sm font-bold text-slate-800 leading-tight">น้องหมีแพนด้า AR</h1>
-                <p id="status-text" class="text-xs font-medium text-emerald-600 flex items-center gap-1">
-                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
-                    กำลังส่องหา Marker Hiro...
-                </p>
-            </div>
-        </div>
-
-        <div class="flex gap-2 pointer-events-auto">
-            <!-- Toggle AR / 3D Mode -->
-            <button id="btn-toggle-mode" onclick="toggle3DMode()" class="glass-btn p-2.5 rounded-2xl shadow-md text-slate-700 hover:text-emerald-600 active:bg-emerald-50 text-xs font-semibold flex items-center gap-1.5 border border-white">
-                <span id="mode-icon" class="text-base">🔄</span>
-                <span id="mode-label" class="hidden sm:inline">โหมด 3D</span>
-            </button>
-            <!-- Help/Marker Modal Button -->
-            <button onclick="openModal('marker-modal')" class="glass-btn p-2.5 rounded-2xl shadow-md text-slate-700 hover:text-blue-600 text-xs font-semibold border border-white">
-                🖼️ <span class="hidden sm:inline">รูป Marker</span>
-            </button>
-        </div>
+<body>
+  <div class="hud">
+    <div class="top"><h1>🐼 AR Panda Mood</h1><p>ส่องกล้องไปที่ Hiro Marker แล้วเลือกอารมณ์ของแพนด้า</p></div>
+    <div id="status" class="status" role="status">กำลังเตรียมกล้อง…</div>
+    <div class="bottom-tip">ใช้กล้องหลัง • วาง Marker บนพื้นราบและให้มีแสงสว่าง</div>
+    <div class="controls">
+      <button id="sadBtn" type="button" aria-pressed="false">🌧️ เศร้า</button>
+      <button id="happyBtn" type="button" aria-pressed="true">🌈 มีความสุข</button>
     </div>
+  </div>
 
-    <!-- Particle Container -->
-    <div id="particle-container" class="fixed inset-0 pointer-events-none z-40 overflow-hidden"></div>
+  <a-scene embedded vr-mode-ui="enabled: false" renderer="antialias: true; alpha: true; colorManagement: true" arjs="sourceType: webcam; facingMode: environment; debugUIEnabled: false; trackingMethod: best;" loading-screen="enabled: false">
+    <a-assets>
+      <a-mixin id="white" material="color: #fffdf4; roughness: 0.9"></a-mixin>
+      <a-mixin id="black" material="color: #20252e; roughness: 0.9"></a-mixin>
+    </a-assets>
+    <a-marker id="hiro" preset="hiro" emitevents="true" smooth="true" smoothCount="5" smoothTolerance="0.015" smoothThreshold="2">
+      <!-- Scale the whole world to fit a Hiro marker while keeping details legible. -->
+      <a-entity id="world" scale="0.62 0.62 0.62">
+        <a-circle rotation="-90 0 0" position="0 0.015 0" radius="1.07" color="#b0e9ae" material="side: double; opacity: .88"></a-circle>
+        <a-circle rotation="-90 0 0" position="0 0.022 0" radius=".84" color="#d3f4cb" material="side: double; opacity: .87"></a-circle>
+        <a-entity id="pandaRig" position="0 0 0.12">
+          <!-- Body, tummy and legs -->
+          <a-sphere position="0 0.78 0" scale="0.51 0.68 0.42" mixin="white"></a-sphere>
+          <a-sphere position="0 0.8 0.32" scale="0.37 0.48 0.15" mixin="white"></a-sphere>
+          <a-sphere position="-0.29 0.28 0.08" scale="0.22 0.31 0.24" mixin="black"></a-sphere>
+          <a-sphere position="0.29 0.28 0.08" scale="0.22 0.31 0.24" mixin="black"></a-sphere>
+          <a-sphere position="-0.30 0.13 0.28" scale="0.24 0.13 0.31" mixin="black"></a-sphere>
+          <a-sphere position="0.30 0.13 0.28" scale="0.24 0.13 0.31" mixin="black"></a-sphere>
+          <!-- Arms separately animated by script -->
+          <a-entity id="leftArm" position="-0.49 1.08 -0.02" rotation="0 0 -15">
+            <a-sphere position="-0.07 -0.29 0.05" scale="0.19 0.39 0.21" mixin="black"></a-sphere>
+          </a-entity>
+          <a-entity id="rightArm" position="0.49 1.08 -0.02" rotation="0 0 15">
+            <a-sphere position="0.07 -0.29 0.05" scale="0.19 0.39 0.21" mixin="black"></a-sphere>
+          </a-entity>
+          <!-- Head drops independently when sad -->
+          <a-entity id="headPivot" position="0 1.32 0.04">
+            <a-entity id="head" position="0 0.48 0.06">
+              <a-sphere scale="0.53 0.50 0.43" mixin="white"></a-sphere>
+              <a-sphere position="-0.38 0.38 -0.03" scale="0.18 0.22 0.15" mixin="black"></a-sphere>
+              <a-sphere position="0.38 0.38 -0.03" scale="0.18 0.22 0.15" mixin="black"></a-sphere>
+              <!-- Eye patches, white sparkling eyes -->
+              <a-sphere position="-0.22 0.055 0.345" rotation="0 -18 -13" scale="0.185 0.24 0.065" mixin="black"></a-sphere>
+              <a-sphere position="0.22 0.055 0.345" rotation="0 18 13" scale="0.185 0.24 0.065" mixin="black"></a-sphere>
+              <a-sphere position="-0.21 0.07 0.404" scale="0.085 0.105 0.038" color="#fff"></a-sphere>
+              <a-sphere position="0.21 0.07 0.404" scale="0.085 0.105 0.038" color="#fff"></a-sphere>
+              <a-sphere position="-0.192 0.07 0.433" scale="0.048 0.067 0.026" color="#121620"></a-sphere>
+              <a-sphere position="0.192 0.07 0.433" scale="0.048 0.067 0.026" color="#121620"></a-sphere>
+              <a-sphere position="-0.211 0.105 0.453" radius="0.018" color="white"></a-sphere>
+              <a-sphere position="0.173 0.105 0.453" radius="0.018" color="white"></a-sphere>
+              <a-sphere position="0 -0.165 0.392" scale="0.25 0.16 0.13" color="#f9f7f0"></a-sphere>
+              <a-sphere position="0 -0.103 0.513" scale="0.112 0.075 0.062" mixin="black"></a-sphere>
+              <a-entity id="happyMouth" position="0 -0.23 0.501">
+                <a-torus arc="180" radius="0.09" radius-tubular="0.013" rotation="0 0 180" color="#29282a"></a-torus>
+              </a-entity>
+              <a-entity id="sadMouth" visible="false" position="0 -0.245 0.507">
+                <a-torus arc="180" radius="0.075" radius-tubular="0.012" rotation="0 0 0" color="#29282a"></a-torus>
+              </a-entity>
+              <a-sphere position="-0.34 -0.15 0.31" scale="0.085 0.04 0.017" color="#ffa9b8" material="opacity: 0.76; transparent: true"></a-sphere>
+              <a-sphere position="0.34 -0.15 0.31" scale="0.085 0.04 0.017" color="#ffa9b8" material="opacity: 0.76; transparent: true"></a-sphere>
+            </a-entity>
+          </a-entity>
+        </a-entity>
+        <!-- Weather is around and behind the panda, not blocking its face -->
+        <a-entity id="sadWeather" visible="false">
+          <a-entity position="-0.63 2.65 -0.43">
+            <a-sphere position="-.32 0 0" scale=".52 .32 .37" color="#69798b"></a-sphere><a-sphere position=".08 .14 0" scale=".65 .45 .41" color="#75869b"></a-sphere><a-sphere position=".50 -.02 0" scale=".48 .30 .34" color="#67778c"></a-sphere>
+          </a-entity>
+          <a-entity position=".7 2.91 -.8" scale=".7 .7 .7">
+            <a-sphere position="-.3 0 0" scale=".48 .3 .35" color="#7c879b"></a-sphere><a-sphere position=".1 .13 0" scale=".55 .4 .38" color="#8793a5"></a-sphere><a-sphere position=".48 0 0" scale=".40 .27 .32" color="#788597"></a-sphere>
+          </a-entity>
+          <a-entity id="rain"></a-entity>
+        </a-entity>
+        <a-entity id="happyWeather">
+          <a-entity id="sun" position="0.84 2.53 -0.66">
+            <a-sphere radius="0.27" color="#ffdf4d" material="emissive: #ffa600; emissiveIntensity: .5"></a-sphere>
+            <a-entity id="sunRays"></a-entity>
+          </a-entity>
+          <a-entity id="rainbow" position="-0.47 0.75 -1.06" rotation="0 0 -9"></a-entity>
+          <a-sphere position="-1.0 1.2 -1.04" scale=".32 .15 .21" color="#ffffff"></a-sphere>
+          <a-sphere position=".36 1.0 -1.05" scale=".33 .14 .22" color="#ffffff"></a-sphere>
+        </a-entity>
+      </a-entity>
+    </a-marker>
+    <a-entity camera></a-entity>
+  </a-scene>
 
-    <!-- Main Action Bottom Floating Bar -->
-    <div class="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 w-11/12 max-w-md pointer-events-auto">
-        <div class="glass-panel p-3 rounded-3xl shadow-2xl flex items-center justify-around gap-2 border border-white/60">
-            <!-- Feed Bamboo Button -->
-            <button onclick="feedBamboo()" class="glass-btn flex-1 py-3 px-2 rounded-2xl flex flex-col items-center justify-center hover:bg-emerald-50 active:scale-95 transition-all group border border-emerald-100 shadow-sm">
-                <span class="text-2xl group-hover:scale-125 transition-transform duration-300">🎋</span>
-                <span class="text-xs font-bold text-slate-700 mt-1">ให้อาหาร</span>
-            </button>
-
-            <!-- Play Ball Button -->
-            <button onclick="playBall()" class="glass-btn flex-1 py-3 px-2 rounded-2xl flex flex-col items-center justify-center hover:bg-amber-50 active:scale-95 transition-all group border border-amber-100 shadow-sm">
-                <span class="text-2xl group-hover:scale-125 transition-transform duration-300">⚽</span>
-                <span class="text-xs font-bold text-slate-700 mt-1">เล่นลูกบอล</span>
-            </button>
-
-            <!-- Pet Head Button -->
-            <button onclick="petPanda()" class="glass-btn flex-1 py-3 px-2 rounded-2xl flex flex-col items-center justify-center hover:bg-pink-50 active:scale-95 transition-all group border border-pink-100 shadow-sm">
-                <span class="text-2xl group-hover:scale-125 transition-transform duration-300">💖</span>
-                <span class="text-xs font-bold text-slate-700 mt-1">ลูบหัว</span>
-            </button>
-
-            <!-- Download Code Button -->
-            <button onclick="downloadSelfCode()" class="glass-btn py-3 px-3 rounded-2xl flex flex-col items-center justify-center hover:bg-blue-50 active:scale-95 transition-all border border-blue-100 shadow-sm text-blue-600" title="ดาวน์โหลดไฟล์ index.html">
-                <span class="text-xl">📥</span>
-                <span class="text-[10px] font-bold text-slate-600 mt-1">โหลดไฟล์</span>
-            </button>
-        </div>
-    </div>
-
-    <!-- Marker Image Modal -->
-    <div id="marker-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-        <div class="glass-panel max-w-sm w-full p-6 rounded-3xl text-center space-y-4 shadow-2xl relative">
-            <button onclick="closeModal('marker-modal')" class="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-200 text-slate-600 font-bold hover:bg-slate-300">✕</button>
-            <h2 class="text-lg font-bold text-slate-800">🖼️ Hiro Marker สำหรับ WebAR</h2>
-            <p class="text-xs text-slate-600">เปิดรูปนี้ในอีกหน้าจอ หรือพิมพ์ใส่กระดาษ แล้วนำกล้องมาส่องเพื่อดูหมีแพนด้า 3D</p>
-            <div class="p-3 bg-white rounded-2xl border border-slate-200 inline-block shadow-inner">
-                <!-- SVG Hiro Marker Preview -->
-                <svg width="180" height="180" viewBox="0 0 200 200" class="mx-auto rounded">
-                    <rect width="200" height="200" fill="black"/>
-                    <rect x="25" y="25" width="150" height="150" fill="white"/>
-                    <rect x="50" y="50" width="100" height="100" fill="black"/>
-                    <!-- Hiro Inner Pattern -->
-                    <path d="M 75 75 L 125 75 L 125 100 L 100 100 L 100 125 L 75 125 Z" fill="white"/>
-                </svg>
-            </div>
-            <p class="text-[11px] text-amber-600 font-medium">💡 หากไม่มี Marker ให้กดปุ่ม "โหมด 3D" ด้านบนเพื่อทดสอบได้ทันที!</p>
-            <button onclick="closeModal('marker-modal')" class="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl shadow-md transition-colors text-sm">
-                เข้าใจแล้ว
-            </button>
-        </div>
-    </div>
-
-    <!-- A-Frame AR Scene -->
-    <a-scene 
-        embedded 
-        arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
-        renderer="logarithmicDepthBuffer: true; colorManagement: true; antialias: true;"
-        vr-mode-ui="enabled: false">
-
-        <!-- Lighting Setup -->
-        <a-entity light="type: ambient; color: #FFFFFF; intensity: 0.9"></a-entity>
-        <a-entity light="type: directional; color: #FFFDF0; intensity: 0.8" position="2 4 3"></a-entity>
-        <a-entity light="type: point; color: #FFD1DC; intensity: 0.4" position="-2 1 1"></a-entity>
-
-        <!-- Hiro AR Marker Container -->
-        <a-marker preset="hiro" id="hiro-marker" emitevents="true">
-            <!-- Anchor Root Entity for Panda & Objects -->
-            <a-entity id="ar-world-root" position="0 0 0">
-                
-                <!-- Panda Container -->
-                <a-entity id="panda-rig" position="0 0 0" scale="1 1 1" rotation="0 0 0">
-                    
-                    <!-- Cute 3D Procedural Panda Entity -->
-                    <a-entity id="panda" position="0 0 0" rotation="0 0 0">
-                        
-                        <!-- HEAD GROUP -->
-                        <a-entity id="panda-head-group" position="0 0.65 0">
-                            <!-- Main Head Base -->
-                            <a-sphere radius="0.4" color="#FFFFFF" roughness="0.9" position="0 0 0" scale="1.08 0.95 1"></a-sphere>
-
-                            <!-- Left Ear -->
-                            <a-sphere radius="0.13" color="#18181B" position="-0.3 0.32 0"></a-sphere>
-                            <a-sphere radius="0.08" color="#3F3F46" position="-0.3 0.32 0.03"></a-sphere>
-
-                            <!-- Right Ear -->
-                            <a-sphere radius="0.13" color="#18181B" position="0.3 0.32 0"></a-sphere>
-                            <a-sphere radius="0.08" color="#3F3F46" position="0.3 0.32 0.03"></a-sphere>
-
-                            <!-- Black Eye Patches -->
-                            <a-sphere radius="0.12" color="#18181B" position="-0.15 0.05 0.32" scale="1 1.25 0.4" rotation="0 0 -18"></a-sphere>
-                            <a-sphere radius="0.12" color="#18181B" position="0.15 0.05 0.32" scale="1 1.25 0.4" rotation="0 0 18"></a-sphere>
-
-                            <!-- Eyes Outer Pupils (White Sparkles) -->
-                            <a-sphere radius="0.04" color="#FFFFFF" position="-0.14 0.06 0.38"></a-sphere>
-                            <a-sphere radius="0.04" color="#FFFFFF" position="0.14 0.06 0.38"></a-sphere>
-                            
-                            <!-- Eyes Inner Pupil Centers -->
-                            <a-sphere radius="0.022" color="#09090B" position="-0.135 0.06 0.4"></a-sphere>
-                            <a-sphere radius="0.022" color="#09090B" position="0.135 0.06 0.4"></a-sphere>
-                            
-                            <!-- Shiny Highlight Dots -->
-                            <a-sphere radius="0.01" color="#FFFFFF" position="-0.125 0.075 0.41"></a-sphere>
-                            <a-sphere radius="0.01" color="#FFFFFF" position="0.125 0.075 0.41"></a-sphere>
-
-                            <!-- Cute Blush Cheeks -->
-                            <a-cylinder radius="0.07" height="0.01" color="#FF9EBB" position="-0.25 -0.06 0.32" rotation="90 0 0" material="opacity: 0.75; transparent: true"></a-cylinder>
-                            <a-cylinder radius="0.07" height="0.01" color="#FF9EBB" position="0.25 -0.06 0.32" rotation="90 0 0" material="opacity: 0.75; transparent: true"></a-cylinder>
-
-                            <!-- Snout & Cute Nose -->
-                            <a-sphere radius="0.11" color="#FAFAFA" position="0 -0.05 0.35" scale="1.2 0.75 0.7"></a-sphere>
-                            <a-sphere radius="0.04" color="#18181B" position="0 -0.02 0.42" scale="1.3 0.8 0.8"></a-sphere>
-                            
-                            <!-- Cute Smiley Mouth Arc -->
-                            <a-torus radius="0.035" tube="0.006" arc="160" color="#18181B" position="0 -0.08 0.42" rotation="180 0 0"></a-torus>
-                        </a-entity>
-
-                        <!-- BODY GROUP -->
-                        <a-entity id="panda-body-group" position="0 0.22 0">
-                            <!-- Main White Chubby Belly -->
-                            <a-sphere radius="0.36" color="#FFFFFF" scale="1 1.05 0.92" position="0 0 0"></a-sphere>
-                            
-                            <!-- Black Shoulder / Upper Body Band -->
-                            <a-cylinder radius="0.34" height="0.2" color="#18181B" position="0 0.12 0"></a-cylinder>
-                            <a-sphere radius="0.34" color="#18181B" position="0 0.2 0" scale="1 0.5 0.9"></a-sphere>
-
-                            <!-- Left Arm -->
-                            <a-entity id="panda-left-arm" position="-0.32 0.1 0.08" rotation="25 0 35">
-                                <a-cylinder radius="0.08" height="0.28" color="#18181B"></a-cylinder>
-                                <a-sphere radius="0.08" color="#18181B" position="0 -0.14 0"></a-sphere>
-                            </a-entity>
-
-                            <!-- Right Arm -->
-                            <a-entity id="panda-right-arm" position="0.32 0.1 0.08" rotation="25 0 -35">
-                                <a-cylinder radius="0.08" height="0.28" color="#18181B"></a-cylinder>
-                                <a-sphere radius="0.08" color="#18181B" position="0 -0.14 0"></a-sphere>
-                            </a-entity>
-
-                            <!-- Left Paw / Foot -->
-                            <a-entity position="-0.18 -0.22 0.18" rotation="10 -15 0">
-                                <a-sphere radius="0.1" color="#18181B" scale="1 0.7 1.2"></a-sphere>
-                                <a-cylinder radius="0.04" height="0.01" color="#FFB2C9" position="0 0.05 0.02" rotation="90 0 0" material="opacity: 0.8; transparent: true"></a-cylinder>
-                            </a-entity>
-
-                            <!-- Right Paw / Foot -->
-                            <a-entity position="0.18 -0.22 0.18" rotation="10 15 0">
-                                <a-sphere radius="0.1" color="#18181B" scale="1 0.7 1.2"></a-sphere>
-                                <a-cylinder radius="0.04" height="0.01" color="#FFB2C9" position="0 0.05 0.02" rotation="90 0 0" material="opacity: 0.8; transparent: true"></a-cylinder>
-                            </a-entity>
-                        </a-entity>
-
-                    </a-entity> <!-- End Panda -->
-
-                    <!-- DYNAMIC INTERACTIVE PROPS -->
-                    
-                    <!-- 🎋 Bamboo Prop (Hidden by default) -->
-                    <a-entity id="bamboo-prop" position="0 -2 0" visible="false">
-                        <!-- Stalk Segment 1 -->
-                        <a-cylinder radius="0.03" height="0.22" color="#22C55E" position="0 0 0"></a-cylinder>
-                        <a-ring radius-inner="0.028" radius-outer="0.035" color="#86EFAC" position="0 0.11 0" rotation="90 0 0"></a-ring>
-                        <!-- Stalk Segment 2 -->
-                        <a-cylinder radius="0.028" height="0.22" color="#16A34A" position="0 0.22 0"></a-cylinder>
-                        <a-ring radius-inner="0.026" radius-outer="0.033" color="#86EFAC" position="0 0.33 0" rotation="90 0 0"></a-ring>
-                        <!-- Bamboo Leaves -->
-                        <a-cone radius-bottom="0.04" height="0.18" color="#4ADE80" position="-0.04 0.28 0" rotation="30 0 45" scale="0.5 1 0.2"></a-cone>
-                        <a-cone radius-bottom="0.04" height="0.18" color="#22C55E" position="0.04 0.24 0" rotation="-20 0 -50" scale="0.5 1 0.2"></a-cone>
-                    </a-entity>
-
-                    <!-- ⚽ Colorful Beach Ball Prop (Hidden by default) -->
-                    <a-entity id="ball-prop" position="0 -2 0" visible="false">
-                        <a-sphere radius="0.16" color="#3B82F6" animation="property: rotation; to: 360 360 0; dur: 2000; loop: true; easing: linear">
-                            <!-- Stripe 1 -->
-                            <a-sphere radius="0.162" color="#EF4444" scale="0.3 1.01 1.01"></a-sphere>
-                            <!-- Stripe 2 -->
-                            <a-sphere radius="0.162" color="#F59E0B" scale="1.01 1.01 0.3"></a-sphere>
-                            <!-- White Top/Bottom Caps -->
-                            <a-cylinder radius="0.05" height="0.33" color="#FFFFFF" position="0 0 0"></a-cylinder>
-                        </a-sphere>
-                    </a-entity>
-
-                    <!-- Shadow Base Plate -->
-                    <a-ellipse radius-x="0.4" radius-y="0.3" color="#000000" material="opacity: 0.25; transparent: true" rotation="-90 0 0" position="0 0 0"></a-ellipse>
-
-                </a-entity> <!-- End Panda Rig -->
-
-            </a-entity> <!-- End AR World Root -->
-        </a-marker>
-
-        <!-- Dynamic Camera for 3D Orbit Preview Mode -->
-        <a-entity id="sim-camera" camera look-controls position="0 0.8 1.8" active="false"></a-entity>
-
-        <!-- Default AR Camera -->
-        <a-entity camera id="ar-camera"></a-entity>
-    </a-scene>
-
-    <script>
-        /* -------------------------------------------------------------------------
-         * WEB AUDIO API SOUND SYNTHESIZER
-         * Generates cute sound effects synthetically (No external audio files needed)
-         * ------------------------------------------------------------------------- */
-        let audioCtx = null;
-
-        function initAudio() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  <script>
+    (() => {
+      'use strict';
+      let mood = 'happy';
+      let markerVisible = false;
+      const byId = id => document.getElementById(id);
+      const panda = byId('pandaRig');
+      const head = byId('headPivot');
+      const leftArm = byId('leftArm');
+      const rightArm = byId('rightArm');
+      const status = byId('status');
+      const makeEntity = (name, attrs, parent) => {
+        const el = document.createElement(name);
+        Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+        parent.appendChild(el);
+        return el;
+      };
+      // Build curved rainbow with concentric, rear-facing colored arcs.
+      const rainbow = byId('rainbow');
+      ['#f84c52','#ff9c37','#ffe35b','#58c96d','#48a8ea','#8373e5'].forEach((color, i) => {
+        makeEntity('a-torus', {
+          arc: 180,
+          radius: (1.31 - i * .09).toFixed(3),
+          'radius-tubular': .052,
+          rotation: '0 0 0',
+          position: `0 0 ${-i * .009}`,
+          material: `color: ${color}; shader: flat; side: double`
+        }, rainbow);
+      });
+      const rays = byId('sunRays');
+      for (let i = 0; i < 10; i++) {
+        const angle = i * Math.PI * 2 / 10;
+        makeEntity('a-box', {
+          position: `${Math.cos(angle) * .39} ${Math.sin(angle) * .39} 0`,
+          rotation: `0 0 ${i * 36 - 90}`,
+          width: .055, height: .17, depth: .034,
+          material: 'color: #ffe45e; shader: flat'
+        }, rays);
+      }
+      const drops = [];
+      const rain = byId('rain');
+      // Deterministic positions: no rain drawn across the foreground center of the face.
+      for (let i = 0; i < 70; i++) {
+        const x = ((i * 37 % 101) / 100 - .5) * 3.2;
+        const y = ((i * 61 % 103) / 102) * 2.4 + .25;
+        const z = -.45 + ((i * 29 % 53) / 53) * .6;
+        const drop = makeEntity('a-cylinder', {
+          radius: .009, height: .13,
+          material: 'color: #a8ddff; opacity: .79; transparent: true; shader: flat',
+          position: `${x} ${y} ${z}`, rotation: '0 0 -10'
+        }, rain);
+        drops.push({el: drop, x, y, z, speed: 1.4 + (i % 6) * .18});
+      }
+      const setMood = next => {
+        mood = next;
+        const sad = next === 'sad';
+        byId('sadWeather').setAttribute('visible', sad);
+        byId('happyWeather').setAttribute('visible', !sad);
+        byId('sadMouth').setAttribute('visible', sad);
+        byId('happyMouth').setAttribute('visible', !sad);
+        byId('sadBtn').setAttribute('aria-pressed', String(sad));
+        byId('happyBtn').setAttribute('aria-pressed', String(!sad));
+        if (markerVisible) status.textContent = sad ? '🐼 แพนด้ากำลังเศร้า ฝนตกแล้ว' : '🐼 แพนด้ากำลังมีความสุข!';
+      };
+      byId('sadBtn').addEventListener('click', () => setMood('sad'));
+      byId('happyBtn').addEventListener('click', () => setMood('happy'));
+      const marker = byId('hiro');
+      marker.addEventListener('markerFound', () => {
+        markerVisible = true;
+        status.textContent = mood === 'happy' ? '🐼 พบ Hiro Marker แล้ว — แพนด้ามีความสุข!' : '🐼 พบ Hiro Marker แล้ว — แพนด้ากำลังเศร้า';
+      });
+      marker.addEventListener('markerLost', () => {
+        markerVisible = false;
+        status.textContent = '📷 เล็งกล้องไปที่ Hiro Marker เพื่อแสดงแพนด้า';
+      });
+      byId('hiro').addEventListener('loaded', () => {
+        status.textContent = '📷 เล็งกล้องไปที่ Hiro Marker เพื่อแสดงแพนด้า';
+      });
+      window.addEventListener('error', (e) => {
+        if (/camera|webcam|permission|NotAllowedError/i.test(String(e.message))) {
+          status.textContent = 'ไม่สามารถใช้กล้องได้ — ตรวจสอบสิทธิ์กล้องและเปิดผ่าน HTTPS หรือ localhost';
+        }
+      });
+      AFRAME.registerComponent('panda-animate', {
+        tick(time, dt) {
+          if (!panda || !head) return;
+          const t = time / 1000;
+          const dtSec = Math.min(dt / 1000 || .016, .05);
+          const happy = mood === 'happy';
+          const targetRot = happy ? Math.sin(t * 3.0) * 13 : Math.sin(t * 1.1) * 1.6;
+          const targetHead = happy ? -4 + Math.sin(t * 2.8) * 3 : 36;
+          const targetY = happy ? Math.abs(Math.sin(t * 3)) * .06 : -.085;
+          const s = Math.min(1, dtSec * 5.5);
+          panda.object3D.rotation.z += ((targetRot * Math.PI / 180) - panda.object3D.rotation.z) * s;
+          panda.object3D.position.y += (targetY - panda.object3D.position.y) * s;
+          head.object3D.rotation.x += ((targetHead * Math.PI / 180) - head.object3D.rotation.x) * s;
+          leftArm.object3D.rotation.z += (((happy ? -18 + Math.sin(t*3+.6)*16 : -8) * Math.PI / 180) - leftArm.object3D.rotation.z) * s;
+          rightArm.object3D.rotation.z += (((happy ? 18 - Math.sin(t*3+.6)*16 : 8) * Math.PI / 180) - rightArm.object3D.rotation.z) * s;
+          if (!happy) {
+            for (const d of drops) {
+              d.y -= d.speed * dtSec;
+              if (d.y < .14) d.y += 2.4;
+              d.el.object3D.position.set(d.x, d.y, d.z);
             }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
+          }
+          rays.object3D.rotation.z = t * .18;
         }
-
-        // Cute Pop Sound
-        function playPopSound() {
-            initAudio();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(400, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(800, audioCtx.currentTime + 0.1);
-            
-            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
-
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.1);
-        }
-
-        // Chewing / Crunching Sound Effect
-        function playChewSound() {
-            initAudio();
-            for (let i = 0; i < 4; i++) {
-                setTimeout(() => {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    
-                    osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(250 + Math.random() * 100, audioCtx.currentTime);
-                    osc.frequency.linearRampToValueAtTime(120, audioCtx.currentTime + 0.08);
-
-                    gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
-                    gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
-
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-
-                    osc.start();
-                    osc.stop(audioCtx.currentTime + 0.08);
-                }, i * 180);
-            }
-        }
-
-        // Bouncy Ball Sound
-        function playBounceSound() {
-            initAudio();
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(180, audioCtx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(550, audioCtx.currentTime + 0.2);
-
-            gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
-
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-
-            osc.start();
-            osc.stop(audioCtx.currentTime + 0.25);
-        }
-
-        // Happy Joy Fanfare Sound
-        function playJoySound() {
-            initAudio();
-            const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
-            notes.forEach((freq, index) => {
-                setTimeout(() => {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-
-                    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
-
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-
-                    osc.start();
-                    osc.stop(audioCtx.currentTime + 0.25);
-                }, index * 90);
-            });
-        }
-
-        /* -------------------------------------------------------------------------
-         * INTERACTION & ANIMATION LOGIC
-         * ------------------------------------------------------------------------- */
-        let isAnimating = false;
-
-        // Spawn floating emoji particles on screen
-        function spawnParticles(emojiList, count = 6) {
-            const container = document.getElementById('particle-container');
-            for (let i = 0; i < count; i++) {
-                const p = document.createElement('div');
-                p.className = 'particle-emoji';
-                p.innerText = emojiList[Math.floor(Math.random() * emojiList.length)];
-                
-                // Random position near center
-                const left = 40 + Math.random() * 20;
-                const top = 50 + Math.random() * 20;
-                p.style.left = `${left}%`;
-                p.style.top = `${top}%`;
-                
-                container.appendChild(p);
-                setTimeout(() => p.remove(), 1500);
-            }
-        }
-
-        // 🎋 Feed Bamboo Action
-        function feedBamboo() {
-            if (isAnimating) return;
-            isAnimating = true;
-
-            const bamboo = document.getElementById('bamboo-prop');
-            const pandaHead = document.getElementById('panda-head-group');
-            const pandaBody = document.getElementById('panda-body-group');
-
-            // Sound
-            playPopSound();
-
-            // Set Bamboo position in front of panda mouth
-            bamboo.setAttribute('visible', 'true');
-            bamboo.setAttribute('position', '0 0.8 0.6');
-            bamboo.setAttribute('rotation', '20 0 45');
-            bamboo.setAttribute('scale', '0.1 0.1 0.1');
-
-            // Animate bamboo moving to panda paws & mouth
-            bamboo.setAttribute('animation__scale', 'property: scale; to: 1 1 1; dur: 400; easing: easeOutBack');
-            bamboo.setAttribute('animation__move', 'property: position; to: 0.05 0.5 0.35; dur: 600; easing: easeOutQuad');
-
-            setTimeout(() => {
-                // Chewing sequence
-                playChewSound();
-                spawnParticles(['🎋', '😋', '💚', '✨', '🍃'], 8);
-
-                // Head crunch wobble animation
-                pandaHead.setAttribute('animation__chew', 'property: rotation; to: 0 0 12; dir: alternate; dur: 150; loop: 6');
-                pandaBody.setAttribute('animation__chew', 'property: scale; to: 1.05 0.95 1.05; dir: alternate; dur: 180; loop: 4');
-
-                setTimeout(() => {
-                    // Shrink and devour bamboo
-                    bamboo.setAttribute('animation__eat', 'property: scale; to: 0 0 0; dur: 300; easing: easeInBack');
-                    
-                    setTimeout(() => {
-                        bamboo.setAttribute('visible', 'false');
-                        pandaHead.removeAttribute('animation__chew');
-                        pandaBody.removeAttribute('animation__chew');
-                        pandaHead.setAttribute('rotation', '0 0 0');
-                        pandaBody.setAttribute('scale', '1 1 1');
-                        
-                        // Happy ending sound
-                        playJoySound();
-                        spawnParticles(['💖', '🐼', '✨'], 5);
-                        isAnimating = false;
-                    }, 350);
-                }, 1100);
-            }, 600);
-        }
-
-        // ⚽ Play Ball Action
-        function playBall() {
-            if (isAnimating) return;
-            isAnimating = true;
-
-            const ball = document.getElementById('ball-prop');
-            const panda = document.getElementById('panda');
-            const leftArm = document.getElementById('panda-left-arm');
-            const rightArm = document.getElementById('panda-right-arm');
-
-            playPopSound();
-
-            // Reset & show ball
-            ball.setAttribute('visible', 'true');
-            ball.setAttribute('position', '0 1.2 0.8');
-            ball.setAttribute('scale', '0.8 0.8 0.8');
-
-            // Ball Bounce animation down to ground
-            ball.setAttribute('animation__drop', 'property: position; to: 0 0.15 0.45; dur: 500; easing: easeInQuad');
-
-            setTimeout(() => {
-                playBounceSound();
-                spawnParticles(['⚽', '⭐', '💨'], 5);
-
-                // Ball bounces up towards panda
-                ball.setAttribute('animation__bounce', 'property: position; to: 0 0.45 0.3; dur: 400; easing: easeOutQuad');
-
-                // Panda Happy Jump & Spin Reaction
-                panda.setAttribute('animation__jump', 'property: position; to: 0 0.35 0; dur: 300; dir: alternate; loop: 2; easing: easeOutQuad');
-                panda.setAttribute('animation__spin', 'property: rotation; to: 0 360 0; dur: 700; easing: easeInOutCubic');
-
-                // Hands raised in joy!
-                leftArm.setAttribute('animation__armL', 'property: rotation; to: 140 0 30; dur: 300; dir: alternate; loop: 2');
-                rightArm.setAttribute('animation__armR', 'property: rotation; to: 140 0 -30; dur: 300; dir: alternate; loop: 2');
-
-                setTimeout(() => {
-                    playJoySound();
-                    spawnParticles(['🎉', '✨', '💖', '⭐'], 8);
-
-                    // Ball bounces away
-                    ball.setAttribute('animation__away', 'property: position; to: 0.6 0.1 0.8; dur: 500; easing: easeOutQuad');
-                    ball.setAttribute('animation__fade', 'property: scale; to: 0 0 0; dur: 500; easing: easeInQuad');
-
-                    setTimeout(() => {
-                        ball.setAttribute('visible', 'false');
-                        panda.removeAttribute('animation__jump');
-                        panda.removeAttribute('animation__spin');
-                        panda.setAttribute('position', '0 0 0');
-                        panda.setAttribute('rotation', '0 0 0');
-                        leftArm.setAttribute('rotation', '25 0 35');
-                        rightArm.setAttribute('rotation', '25 0 -35');
-                        isAnimating = false;
-                    }, 500);
-                }, 750);
-            }, 500);
-        }
-
-        // 💖 Pet Panda Action
-        function petPanda() {
-            if (isAnimating) return;
-            isAnimating = true;
-
-            const head = document.getElementById('panda-head-group');
-            playJoySound();
-            spawnParticles(['💖', '🌸', '🥰', '✨'], 9);
-
-            // Head tilt & stretch happy wiggle
-            head.setAttribute('animation__pet', 'property: rotation; to: 0 0 15; dir: alternate; dur: 200; loop: 4');
-            head.setAttribute('animation__scale', 'property: scale; to: 1.05 1.05 1.05; dir: alternate; dur: 200; loop: 4');
-
-            setTimeout(() => {
-                head.removeAttribute('animation__pet');
-                head.removeAttribute('animation__scale');
-                head.setAttribute('rotation', '0 0 0');
-                head.setAttribute('scale', '1 1 1');
-                isAnimating = false;
-            }, 900);
-        }
-
-        /* -------------------------------------------------------------------------
-         * 3D PREVIEW SIMULATION MODE & AR MARKER EVENTS
-         * ------------------------------------------------------------------------- */
-        let is3DMode = false;
-
-        function toggle3DMode() {
-            is3DMode = !is3DMode;
-            const arWorld = document.getElementById('ar-world-root');
-            const scene = document.querySelector('a-scene');
-            const modeLabel = document.getElementById('mode-label');
-            const modeIcon = document.getElementById('mode-icon');
-            const statusText = document.getElementById('status-text');
-
-            if (is3DMode) {
-                // Attach World directly to scene center for 3D preview without marker
-                scene.appendChild(arWorld);
-                arWorld.setAttribute('position', '0 0 -1.5');
-                arWorld.setAttribute('scale', '0.8 0.8 0.8');
-
-                modeLabel.innerText = "โหมด AR";
-                modeIcon.innerText = "📷";
-                statusText.innerHTML = '<span class="w-2 h-2 rounded-full bg-blue-500"></span> กำลังแสดงในโหมด 3D Preview';
-                statusText.className = "text-xs font-medium text-blue-600 flex items-center gap-1";
-                
-                playPopSound();
-                spawnParticles(['🔄', '✨'], 4);
-            } else {
-                // Attach back to Hiro marker
-                const marker = document.getElementById('hiro-marker');
-                marker.appendChild(arWorld);
-                arWorld.setAttribute('position', '0 0 0');
-                arWorld.setAttribute('scale', '1 1 1');
-
-                modeLabel.innerText = "โหมด 3D";
-                modeIcon.innerText = "🔄";
-                statusText.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> กำลังส่องหา Marker Hiro...';
-                statusText.className = "text-xs font-medium text-emerald-600 flex items-center gap-1";
-                
-                playPopSound();
-            }
-        }
-
-        // AR Marker Detection Events
-        window.addEventListener('load', () => {
-            const marker = document.getElementById('hiro-marker');
-            const statusText = document.getElementById('status-text');
-
-            if (marker) {
-                marker.addEventListener('markerFound', () => {
-                    if (!is3DMode) {
-                        statusText.innerHTML = '✨ พบน้องหมีแพนด้าแล้ว!';
-                        statusText.className = "text-xs font-semibold text-emerald-600 flex items-center gap-1";
-                        playJoySound();
-                        spawnParticles(['🎉', '🐼', '✨'], 6);
-                    }
-                });
-
-                marker.addEventListener('markerLost', () => {
-                    if (!is3DMode) {
-                        statusText.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span> กำลังส่องหา Marker Hiro...';
-                        statusText.className = "text-xs font-medium text-amber-600 flex items-center gap-1";
-                    }
-                });
-            }
-        });
-
-        /* -------------------------------------------------------------------------
-         * UTILITY MODAL & DOWNLOAD SELF CODE FUNCTIONS
-         * ------------------------------------------------------------------------- */
-        function openModal(id) {
-            document.getElementById(id).classList.remove('hidden');
-            playPopSound();
-        }
-
-        function closeModal(id) {
-            document.getElementById(id).classList.add('hidden');
-            playPopSound();
-        }
-
-        // Downloads the complete index.html file directly to the device
-        function downloadSelfCode() {
-            playJoySound();
-            const htmlContent = "<!DOCTYPE html>\n" + document.documentElement.outerHTML;
-            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'index.html';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            spawnParticles(['📥', '✅', '🎉'], 5);
-        }
-    </script>
+      });
+      byId('world').setAttribute('panda-animate', '');
+      setMood('happy');
+    })();
+  </script>
 </body>
 </html>
